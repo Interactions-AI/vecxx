@@ -37,12 +37,21 @@ protected:
     TokenList_T _emit_begin_tok;
     TokenList_T _emit_end_tok;
     Vocab_T* _vocab;
+    Transform_T _transform;
 public:
+    BasicVectorizer(Vocab_T* vocab,
+		    const Transform_T& transform,
+		    const TokenList_T& emit_begin_tok = TokenList_T(),
+		    const TokenList_T& emit_end_tok = TokenList_T()
+	) : _transform(transform), _emit_begin_tok(emit_begin_tok), _emit_end_tok(emit_end_tok), _vocab(vocab) {}
+
     BasicVectorizer(Vocab_T* vocab,
 		    const TokenList_T& emit_begin_tok = TokenList_T(),
 		    const TokenList_T& emit_end_tok = TokenList_T()
-		    ) : _emit_begin_tok(emit_begin_tok), _emit_end_tok(emit_end_tok), _vocab(vocab) {}
-    
+	) : _emit_begin_tok(emit_begin_tok), _emit_end_tok(emit_end_tok), _vocab(vocab) {
+	_transform = [](std::string s) -> std::string { return s; };
+    }
+
     virtual TokenList_T get_pieces(const std::string& token) const {
     	return {token};
     }
@@ -88,8 +97,8 @@ class PredefinedVocab
 public:
     PredefinedVocab() {}
     virtual ~PredefinedVocab() {}
-    virtual int lookup(const std::string& s) const = 0;
-    virtual TokenList_T apply(const TokenList_T& tokens) const = 0;
+    virtual int lookup(const std::string& s, const Transform_T& transform) const = 0;
+    virtual TokenList_T apply(const TokenList_T& tokens, const Transform_T& transform) const = 0;
     virtual int pad_id() const = 0;
     virtual int start_id() const = 0;
     virtual int end_id() const = 0;
@@ -160,12 +169,13 @@ public:
     virtual std::string unk_str() const { return _unk_str; }
     
     
-    virtual int lookup(const std::string& s) const {
+    virtual int lookup(const std::string& s, const Transform_T& transform) const {
 	auto p = special_tokens.find(s);
 	if (p != vocab.end()) {
 	    return p->second;
 	}
-	p = vocab.find(s);
+	auto t = transform(s);
+	p = vocab.find(t);
 	if (p == vocab.end()) {
 	    return _unk_id;
 	}
@@ -174,12 +184,13 @@ public:
     }
 
     // FIXME: pass return by ref
-    virtual TokenList_T apply(const TokenList_T& tokens) const {
+    virtual TokenList_T apply(const TokenList_T& tokens, const Transform_T& transform) const {
 	return _apply_bpe_single(tokens,
 				 _codes,
 				 _reversed_codes,
 				 vocab,
-				 special_tokens);
+				 special_tokens,
+				 transform);
 	
     }
 };
@@ -190,19 +201,30 @@ protected:
     TokenList_T _emit_begin_tok;
     TokenList_T _emit_end_tok;
     PredefinedVocab* _vocab;
+    Transform_T _transform;
 public:
+    VocabVectorizer(PredefinedVocab* vocab,
+		    const Transform_T& transform,
+		    const TokenList_T& emit_begin_tok = TokenList_T(),
+		    const TokenList_T& emit_end_tok = TokenList_T()
+	) : _transform(transform), _emit_begin_tok(emit_begin_tok), _emit_end_tok(emit_end_tok), _vocab(vocab) {
+
+    }
+
     VocabVectorizer(PredefinedVocab* vocab,
 		    const TokenList_T& emit_begin_tok = TokenList_T(),
 		    const TokenList_T& emit_end_tok = TokenList_T()
-		    ) : _emit_begin_tok(emit_begin_tok), _emit_end_tok(emit_end_tok), _vocab(vocab) {}
+	) :  _emit_begin_tok(emit_begin_tok), _emit_end_tok(emit_end_tok), _vocab(vocab) {
+	_transform = [](std::string s) -> std::string { return s; };
+    }
     virtual ~VocabVectorizer() {}
     
     virtual int piece_to_id(const std::string& s) const {
-	return _vocab->lookup(s);
+	return _vocab->lookup(s, _transform);
     }
     
     virtual TokenList_T convert_to_pieces(const TokenList_T& tokens) const {
-	auto pieces = _vocab->apply(tokens);
+	auto pieces = _vocab->apply(tokens, _transform);
 	pieces.insert(pieces.begin(), _emit_begin_tok.begin(), _emit_begin_tok.end());
 	pieces.insert(pieces.end(), _emit_end_tok.begin(), _emit_end_tok.end());
 	return pieces;

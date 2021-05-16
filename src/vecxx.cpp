@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/functional.h>
 #include "vecxx/vecxx.h"
 
 namespace py = pybind11;
@@ -35,14 +36,18 @@ PYBIND11_MODULE(vecxx, m) {
       .def_property_readonly("end_str", &BPEVocab::end_str)
       .def_property_readonly("unk_str", &BPEVocab::unk_str)
       .def_readonly("special_tokens", &BPEVocab::special_tokens)
-      .def("apply", &BPEVocab::apply,
-	   py::arg("tokens")
-	   )
+      .def("apply", &BPEVocab::apply)
       ;
 
     py::class_<VocabVectorizer>(m, "VocabVectorizer")
       .def(py::init<BPEVocab*, const TokenList_T&, const TokenList_T&>(),
 	   py::arg("vocab"),
+	   py::arg("emit_begin_tok")=TokenList_T(),
+	   py::arg("emit_end_tok")=TokenList_T()
+	   )
+      .def(py::init<BPEVocab*, const Transform_T&, const TokenList_T&, const TokenList_T&>(),
+	   py::arg("vocab"),
+	   py::arg("transform"),
 	   py::arg("emit_begin_tok")=TokenList_T(),
 	   py::arg("emit_end_tok")=TokenList_T()
 	   )

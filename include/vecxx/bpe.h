@@ -31,7 +31,6 @@ typedef std::unordered_map<TPS_T, uint32_t, pair_hash> Codes_T;
 typedef std::unordered_map<std::string, TPS_T> RevCodes_T;
 
 
-
 void _decompose_bpe(const std::string s,
 		    TokenList_T &new_subwords,
 		    const RevCodes_T &reversed_codes,
@@ -155,7 +154,8 @@ TokenList_T _apply_bpe_single(const TokenList_T& s,
 			      const Codes_T& codes,
 			      const RevCodes_T& reversed_codes,
 			      const Vocab_T& vocab,
-			      const Vocab_T& special_tokens=Vocab_T()) {
+			      const Vocab_T& special_tokens,
+			      const Transform_T& transform) {
     std::string cur;
     TokenList_T words = s;
     auto sz = words.size();
@@ -167,6 +167,7 @@ TokenList_T _apply_bpe_single(const TokenList_T& s,
 	    if (i < sz - 1) cur += " ";
 	    continue;
 	}
+	word = transform(word);
 	TokenList_T word_bpes;
 	int pos = 0, real_length = 0;
 	int last_start = 0;
