@@ -39,8 +39,8 @@ protected:
     Vocab_T* _vocab;
 public:
     BasicVectorizer(Vocab_T* vocab,
-		    TokenList_T emit_begin_tok,
-		    TokenList_T emit_end_tok
+		    const TokenList_T& emit_begin_tok = TokenList_T(),
+		    const TokenList_T& emit_end_tok = TokenList_T()
 		    ) : _emit_begin_tok(emit_begin_tok), _emit_end_tok(emit_end_tok), _vocab(vocab) {}
     
     virtual TokenList_T get_pieces(const std::string& token) const {
@@ -108,16 +108,16 @@ protected:
     int _start_id;
     int _end_id;
     int _unk_id;
+    int _offset;
     std::string _pad_str;
     std::string _start_str;
     std::string _end_str;
     std::string _unk_str;
-
-    int _offset;
 public:
     Vocab_T vocab;
     Vocab_T special_tokens;
-    BPEVocab(std::string vocab_file, std::string codes_file,
+    BPEVocab(std::string vocab_file,
+	     std::string codes_file,
 	     int pad = 0,
 	     int start = 1,
 	     int end = 2,
@@ -126,14 +126,28 @@ public:
 	     std::string start_str = "<GO>",
 	     std::string end_str = "<EOS>",
 	     std::string unk_str = "<UNK>",
-	     int offset = 4):
-	_pad_id(pad), _start_id(start), _end_id(end), _unk_id(unk), _pad_str(pad_str), _start_str(start_str), _end_str(end_str), _unk_str(unk_str), _offset(offset)  {
-	read_vocab_file(vocab_file, vocab, _offset);
-	read_codes_file(codes_file, _codes, _reversed_codes);
+	     const TokenList_T& extra_tokens = TokenList_T() ):
+	_pad_id(pad),
+	_start_id(start),
+	_end_id(end),
+	_unk_id(unk),
+	_pad_str(pad_str),
+	_start_str(start_str),
+	_end_str(end_str),
+	_unk_str(unk_str) {
 	special_tokens[_pad_str] = _pad_id;
 	special_tokens[_start_str] = _start_id;
 	special_tokens[_end_str] = _end_id;
 	special_tokens[_unk_str] = _unk_id;
+	_offset = std::max({pad, start, end, unk}) + 1;
+	for (auto token : extra_tokens) {
+	    special_tokens[token] = _offset;
+	    ++_offset;
+	}
+	   
+	read_vocab_file(vocab_file, vocab, _offset);
+	read_codes_file(codes_file, _codes, _reversed_codes);
+	    
     }
     virtual ~BPEVocab() {}
     virtual int pad_id() const { return _pad_id; }
@@ -177,8 +191,8 @@ protected:
     PredefinedVocab* _vocab;
 public:
     VocabVectorizer(PredefinedVocab* vocab,
-		    TokenList_T emit_begin_tok,
-		    TokenList_T emit_end_tok
+		    const TokenList_T& emit_begin_tok = TokenList_T(),
+		    const TokenList_T& emit_end_tok = TokenList_T()
 		    ) : _emit_begin_tok(emit_begin_tok), _emit_end_tok(emit_end_tok), _vocab(vocab) {}
     virtual ~VocabVectorizer() {}
     

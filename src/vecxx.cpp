@@ -11,7 +11,7 @@ PYBIND11_MODULE(vecxx, m) {
     m.doc() = "pybind11 vecxx plugin";
     py::class_<BPEVocab>(m, "BPEVocab")
       .def(py::init<std::string, std::string, int, int, int, int,
-	   std::string, std::string, std::string, std::string, int>(),
+	   std::string, std::string, std::string, std::string, const TokenList_T&>(),
 	   py::arg("vocab_file"),
 	   py::arg("codes_file"),
 	   py::arg("pad")=0,
@@ -22,7 +22,7 @@ PYBIND11_MODULE(vecxx, m) {
 	   py::arg("start_str")="<GO>",
 	   py::arg("end_str")="<EOS>",
 	   py::arg("unk_str")="<UNK>",
-	   py::arg("offset")=4
+	   py::arg("extra_tokens")=TokenList_T()
 	   
 	   )
       .def("lookup", &BPEVocab::lookup)
@@ -34,16 +34,18 @@ PYBIND11_MODULE(vecxx, m) {
       .def_property_readonly("start_str", &BPEVocab::start_str)
       .def_property_readonly("end_str", &BPEVocab::end_str)
       .def_property_readonly("unk_str", &BPEVocab::unk_str)
+      .def_readonly("special_tokens", &BPEVocab::special_tokens)
       .def("apply", &BPEVocab::apply,
 	   py::arg("tokens")
 	   )
       ;
 
     py::class_<VocabVectorizer>(m, "VocabVectorizer")
-      .def(py::init<BPEVocab*, TokenList_T, TokenList_T>(),
+      .def(py::init<BPEVocab*, const TokenList_T&, const TokenList_T&>(),
 	   py::arg("vocab"),
-	   py::arg("emit_begin_tok"),
-	   py::arg("emit_end_tok"))
+	   py::arg("emit_begin_tok")=TokenList_T(),
+	   py::arg("emit_end_tok")=TokenList_T()
+	   )
       .def("piece_to_id", &VocabVectorizer::piece_to_id)
       .def("convert_to_pieces", &VocabVectorizer::convert_to_pieces,
 	   py::arg("tokens")

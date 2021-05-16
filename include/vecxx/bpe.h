@@ -150,40 +150,6 @@ std::string process_bpe(TokenList_T &subwords,
 }
 
 
-TokenList_T _apply_bpe(TokenList_T& sentences,
-		       const Codes_T& codes,
-		       const RevCodes_T& reversed_codes,
-		       const Vocab_T& vocab) {
-    // Borrowed from fastBPE
-    TokenList_T res;
-    for(auto &s: sentences) {
-	res.emplace_back("");
-	std::string& cur = res.back();
-	TokenList_T words = split(s);
-	for (size_t i = 0; i < words.size(); i++) {
-	    auto word = words[i];
-	    TokenList_T word_bpes;
-	    int pos = 0, real_length = 0;
-	    int last_start = 0;
-	    while (word[pos]) {
-		bool new_char = (word[pos] & 0xc0) != 0x80;
-		real_length += new_char;
-		if (new_char && pos > 0) {
-		    auto new_token = word.substr(last_start, pos - last_start);
-		    word_bpes.push_back(new_token);
-		    last_start = pos;
-		}
-		pos++;
-	    }
-	    auto bpe = word.substr(last_start, std::string::npos) + BPE_END_WORD;
-	    word_bpes.push_back(bpe);
-	    cur += process_bpe(word_bpes, codes, reversed_codes, vocab);
-	    if (i < words.size() - 1) cur += " ";
-	}
-    }
-    return res;
-}
-
 // TODO: make this more efficient by changing process_bpe
 TokenList_T _apply_bpe_single(const TokenList_T& s,
 			      const Codes_T& codes,
