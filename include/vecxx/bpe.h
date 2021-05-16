@@ -154,11 +154,19 @@ std::string process_bpe(TokenList_T &subwords,
 TokenList_T _apply_bpe_single(const TokenList_T& s,
 			      const Codes_T& codes,
 			      const RevCodes_T& reversed_codes,
-			      const Vocab_T& vocab) {
+			      const Vocab_T& vocab,
+			      const Vocab_T& special_tokens=Vocab_T()) {
     std::string cur;
     TokenList_T words = s;
-    for (size_t i = 0; i < words.size(); i++) {
+    auto sz = words.size();
+    for (auto i = 0; i < sz; i++) {
 	auto word = words[i];
+	auto it = special_tokens.find(word);
+	if (it != special_tokens.end()) {
+	    cur += " " + word;
+	    if (i < sz - 1) cur += " ";
+	    continue;
+	}
 	TokenList_T word_bpes;
 	int pos = 0, real_length = 0;
 	int last_start = 0;
@@ -175,7 +183,7 @@ TokenList_T _apply_bpe_single(const TokenList_T& s,
 	auto bpe = word.substr(last_start, std::string::npos) + BPE_END_WORD;
 	word_bpes.push_back(bpe);
 	cur += process_bpe(word_bpes, codes, reversed_codes, vocab);
-	if (i < words.size() - 1) cur += " ";
+	if (i < sz - 1) cur += " ";
     }
     return split(cur);
 }

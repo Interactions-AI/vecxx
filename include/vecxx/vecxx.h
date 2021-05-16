@@ -178,7 +178,8 @@ public:
 	return _apply_bpe_single(tokens,
 				 _codes,
 				 _reversed_codes,
-				 vocab);
+				 vocab,
+				 special_tokens);
 	
     }
 };
