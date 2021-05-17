@@ -12,7 +12,7 @@ typedef std::vector<std::string> TokenList_T;
 typedef std::unordered_map<std::string, int> Counter_T; 
 typedef std::unordered_map<std::string, int> Vocab_T;
 typedef std::vector<int> VecList_T;
-
+typedef std::function<std::string(std::string)> Transform_T;
 TokenList_T split(const std::string& s,
 		  std::string splitter=" ")
 {

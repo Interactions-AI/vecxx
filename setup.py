@@ -101,6 +101,9 @@ setup(
     python_requires='>=3.6',
     ext_modules=ext_modules,
     install_requires=["pybind11>=2.4"],
+    extras_require={
+        'test': ['pytest', 'pytest-forked'],
+    },
     cmdclass={'build_ext': BuildExt},
     package_data={
         'vecxx': [
