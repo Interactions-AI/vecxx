@@ -72,8 +72,9 @@ void _limit_vocab_bpe(const TokenList_T &subwords, TokenList_T &new_subwords,
 		      const RevCodes_T &reversed_codes,
 		      const Vocab_T &vocab) {
     std::string query;
-    for (auto i = 0; i < subwords.size(); i++) {
-	bool is_final = i == subwords.size() - 1;
+    int sz = (int)subwords.size();
+    for (int i = 0; i < sz; i++) {
+	bool is_final = i == (sz - 1);
 	auto &subword = subwords[i];
 	if (is_final) {
 	    query = subword.substr(0, subword.size() - BPE_END_WORD_LENGTH);
@@ -99,7 +100,7 @@ std::string process_bpe(TokenList_T &subwords,
 	// find the best pair
 	int best_pair_id = -1;
 	auto best_pair = codes.end(); // TODO ugly hack that works
-	for (auto i = 0; i < subwords.size() - 1; i++) {
+	for (int i = 0; i < (int)(subwords.size() - 1); i++) {
 	    auto pair = std::make_pair(subwords[i], subwords[i + 1]);
 	    auto it = codes.find(pair);
 	    int pair_rank = it == codes.end() ? -1 : it->second;
@@ -158,8 +159,8 @@ TokenList_T _apply_bpe_single(const TokenList_T& s,
 			      const Transform_T& transform) {
     std::string cur;
     TokenList_T words = s;
-    auto sz = words.size();
-    for (auto i = 0; i < sz; i++) {
+    int sz = (int)words.size();
+    for (int i = 0; i < sz; i++) {
 	auto word = words[i];
 	auto it = special_tokens.find(word);
 	if (it != special_tokens.end()) {
