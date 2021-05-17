@@ -9,10 +9,13 @@
 #include <functional>
 
 typedef std::vector<std::string> TokenList_T;
+typedef std::unordered_map<std::string, std::string> TokenMap_T;
+typedef std::vector<TokenMap_T > TokenMapList_T;
 typedef std::unordered_map<std::string, int> Counter_T; 
 typedef std::unordered_map<std::string, int> Vocab_T;
 typedef std::vector<int> VecList_T;
 typedef std::function<std::string(std::string)> Transform_T;
+
 TokenList_T split(const std::string& s,
 		  std::string splitter=" ")
 {
@@ -36,7 +39,7 @@ TokenList_T split(const std::string& s,
     return vec;
 }
 
-bool endsWith(const std::string & s, const std::string & match)
+bool ends_with(const std::string & s, const std::string & match)
 {
     const size_t mLen = match.length();
     const size_t sLen = s.length();
@@ -46,7 +49,7 @@ bool endsWith(const std::string & s, const std::string & match)
     return sLen >= mLen;
 }
 
-bool startsWith(const std::string & s, const std::string & match)
+bool starts_with(const std::string & s, const std::string & match)
 {
     const size_t mLen = match.length();
     const size_t sLen = s.length();
@@ -78,16 +81,6 @@ void read_vocab_file(const std::string& infile, Vocab_T& vocab, int offset=4) {
 	++i;
 
 	
-    }
-}
-
-void freq2vocab(const Counter_T& counter, Vocab_T& vocab, int min_freq=0) {
-    int offset = 0;
-    for (auto kv : counter) {
-	if (kv.second > min_freq) {
-	    vocab[kv.first] = offset;
-	    ++offset;
-	}
     }
 }
 
