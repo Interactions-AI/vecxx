@@ -34,4 +34,10 @@ def test_ids():
     vec = VocabVectorizer(bpe, transform=str.lower, emit_begin_tok=["<GO>"], emit_end_tok=["<EOS>"])
     v, l = vec.convert_to_ids(TEST_SENTENCE.split())
     assert v == TEST_IDS_GOLD
-    print(l)
+    assert l == len(TEST_IDS_GOLD)
+
+    v, l = vec.convert_to_ids(TEST_SENTENCE.split(), 128)
+    assert v[:l] == TEST_IDS_GOLD
+    assert np.sum(v[l+1:]) == 0
+    assert l == len(TEST_IDS_GOLD)
+    
