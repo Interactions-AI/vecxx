@@ -431,7 +431,7 @@ public:
 
     virtual void _convert_to_tokens(const TokenMapList_T& map_tokens,
 				    TokenList_T& token_list) const {
-	assert(tokens.size() == output.size());
+	assert(map_tokens.size() == token_list.size());
 	for (auto map_token : map_tokens) {
 	    token_list.push_back(map_token_to_str(map_token, _fields, _delim));
 	}
