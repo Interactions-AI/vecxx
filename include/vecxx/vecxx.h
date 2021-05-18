@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <cassert>
 #include <unordered_map>
 #include <algorithm>
 #include <functional>
@@ -439,7 +440,7 @@ public:
     }
     
     virtual TokenList_T convert_to_pieces(const TokenMapList_T& tokens) const {
-	TokenList_T token_list;
+	TokenList_T token_list(tokens.size());
 	_convert_to_tokens(tokens, token_list);
 	auto pieces = _vocab->apply(token_list, _transform);
 	pieces.insert(pieces.begin(), _emit_begin_tok.begin(), _emit_begin_tok.end());
