@@ -1,0 +1,8 @@
+.idea
+
+# Compiled binary addons (http://nodejs.org/api/addons.html)
+build
+tests/__pycache__
+
+# Dependency directories
+node_modules/
