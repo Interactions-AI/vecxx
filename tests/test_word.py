@@ -35,6 +35,7 @@ def test_pieces_map():
     map_tokens = [{"text": s} for s in TEST_SENTENCE.split()]
     sentence = ' '.join(vec.convert_to_pieces(map_tokens))
     assert sentence == TEST_SENTENCE_GOLD
+
 def test_word_lookup():
     words = WordVocab(
         COUNTS

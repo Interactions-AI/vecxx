@@ -59,11 +59,12 @@ public:
 std::string map_token_to_str(const TokenMap_T& token, const TokenList_T& fields, const std::string& delim) {
     int sz = (int)fields.size();
     if (sz == 1) {
-	return token.find(fields[0])->second;
+        auto t = token.find(fields[0])->second;
+	return t;
     }
     
     std::ostringstream oss;
-    for (auto i = 0; i < sz; ++i) {
+    for (auto i = 0; i < sz - 1; ++i) {
 	oss << token.find(fields[i])->second << delim;
     }
     oss << token.find(fields[sz - 1])->second;
@@ -432,15 +433,15 @@ public:
 
     virtual void _convert_to_tokens(const TokenMapList_T& map_tokens,
 				    TokenList_T& token_list) const {
-	assert(map_tokens.size() == token_list.size());
 	for (auto map_token : map_tokens) {
-	    token_list.push_back(map_token_to_str(map_token, _fields, _delim));
+	    auto t = map_token_to_str(map_token, _fields, _delim);
+	    token_list.push_back(t);
 	}
 
     }
     
     virtual TokenList_T convert_to_pieces(const TokenMapList_T& tokens) const {
-	TokenList_T token_list(tokens.size());
+	TokenList_T token_list;
 	_convert_to_tokens(tokens, token_list);
 	auto pieces = _vocab->apply(token_list, _transform);
 	pieces.insert(pieces.begin(), _emit_begin_tok.begin(), _emit_begin_tok.end());
