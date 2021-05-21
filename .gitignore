@@ -2,6 +2,7 @@
 
 # Compiled binary addons (http://nodejs.org/api/addons.html)
 build
+dist
 tests/__pycache__
 
 # Dependency directories

@@ -1,0 +1,12 @@
+build
+.idea
+__pycache__
+*.pyc
+*.py
+tests
+.github
+tsconfig.tsbuildinfo
+jest.config.js
+tsconfig.json
+.prettierrc
+src/*.ts

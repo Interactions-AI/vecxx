@@ -4,7 +4,7 @@
         "allowSyntheticDefaultImports": true,
         "baseUrl": ".",
         "declaration": true,
-        "declarationDir": "build/js/types",
+        "declarationDir": "dist/types",
         "declarationMap": true,
         "emitDecoratorMetadata": true,
         "experimentalDecorators": true,
@@ -15,7 +15,7 @@
         "noImplicitThis": true,
         "noLib": false,
         "noUnusedLocals": false,
-        "outDir": "./build/js",
+        "outDir": "./dist",
         "preserveConstEnums": true,
         "pretty": true,
         "removeComments": true,
@@ -25,8 +25,8 @@
         "strictFunctionTypes": false,
         "strictNullChecks": false,
         "target": "es2017",
-        "tsBuildInfoFile": "./build/js/tsconfig.tsbuildinfo",
+        "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
         "typeRoots": ["./node_modules/@types"]
     },
-    "exclude": ["node_modules", "build"]
+    "exclude": ["node_modules", "dist"]
 }
