@@ -17,7 +17,7 @@ Tokens from either the BPE vocab or special tokens (like `<GO>` and `<EOS>`) can
 If a second argument is provided to `convert_to_ids` this will indicate a padded length required for the tensor
 
 ```python
-
+    from vecxx import *
     bpe = BPEVocab(
         vocab_file=os.path.join(TEST_DATA, "vocab.30k"),
         codes_file=os.path.join(TEST_DATA, "codes.30k")
