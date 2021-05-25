@@ -11,7 +11,7 @@
 typedef std::vector<std::string> TokenList_T;
 typedef std::unordered_map<std::string, std::string> TokenMap_T;
 typedef std::vector<TokenMap_T > TokenMapList_T;
-typedef std::unordered_map<std::string, int> Counter_T; 
+typedef std::map<std::string, int> Counter_T;
 typedef std::unordered_map<std::string, int> Vocab_T;
 typedef std::vector<int> VecList_T;
 typedef std::function<std::string(std::string)> Transform_T;
