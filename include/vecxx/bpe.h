@@ -117,14 +117,14 @@ std::string process_bpe(TokenList_T &subwords,
 	bool just_merged = false;
 	new_subwords = TokenList_T();
 	for (size_t i = 0; i < subwords.size(); i++) {
-	    if ((i + 1 < subwords.size()) && (not just_merged) &&
+	    if ((i + 1 < subwords.size()) && (!just_merged) &&
 		subwords[i] == best_pair->first.first &&
 		subwords[i + 1] == best_pair->first.second) {
 		new_subwords.push_back(subwords[i] + subwords[i + 1]);
 		just_merged = true;
 	    }
 	    else {
-		if (not just_merged) {
+		if (!just_merged) {
 		    new_subwords.push_back(subwords[i]);
 		}
 		just_merged = false;
