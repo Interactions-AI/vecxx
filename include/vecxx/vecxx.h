@@ -380,7 +380,7 @@ public:
 	if (max_len <= 0) {
 	    max_len = insz;
 	}
-	auto sz = std::min(insz, max_len);
+	auto sz = std::min<long unsigned int>(insz, max_len);
 	VecList_T ids(max_len, _vocab->pad_id());
         for (auto i = 0; i < sz; ++i) {
 	    ids[i] = piece_to_id(pieces[i]);
@@ -456,7 +456,7 @@ public:
 	if (max_len <= 0) {
 	    max_len = insz;
 	}
-	auto sz = std::min(insz, max_len);
+	auto sz = std::min<long unsigned int>(insz, max_len);
 	VecList_T ids(max_len, _vocab->pad_id());
         for (auto i = 0; i < sz; ++i) {
 	    ids[i] = piece_to_id(pieces[i]);
