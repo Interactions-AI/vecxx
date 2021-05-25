@@ -6,7 +6,7 @@ from vecxx import *
 TEST_DATA = os.path.join(os.path.realpath(os.path.dirname(__file__)), "test_data")
 TEST_SENTENCE = "My name is Dan . I am from Ann Arbor , Michigan , in Washtenaw County"
 TEST_SENTENCE_GOLD = "<GO> my name is dan . i am from ann arbor , michigan , in washtenaw county <EOS>"
-TEST_IDS_GOLD = [1, 9, 16, 10, 12, 8, 18, 15, 11, 6, 4, 5, 14, 5, 7, 13, 17, 2]
+TEST_IDS_GOLD = [1, 16, 17, 14, 10, 5, 12, 6, 11, 7, 8, 4, 15, 4, 13, 18, 9, 2]
 COUNTS = {'washtenaw': 1, 'michigan': 1, 'dan': 1, '.': 1, 'my': 1, 'is': 1, 'county': 1, 'name': 1, 'from': 1, 'i': 1, 'am': 1, 'in': 1, 'ann': 1, ',': 2, 'arbor': 1}
 VOCAB_LIST = ['arbor', ',', 'ann', 'in', '.', 'my', 'is', 'from', 'dan', 'washtenaw', 'michigan', 'am', 'name', 'county', 'i']
 
