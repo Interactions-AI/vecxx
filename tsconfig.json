@@ -2,7 +2,6 @@
     "compileOnSave": true,
     "compilerOptions": {
         "allowSyntheticDefaultImports": true,
-        "baseUrl": ".",
         "declaration": true,
         "declarationDir": "dist/types",
         "declarationMap": true,
@@ -19,7 +18,7 @@
         "preserveConstEnums": true,
         "pretty": true,
         "removeComments": true,
-        "rootDirs": ["./src", "./tests"],
+        "rootDir": "src",
         "sourceMap": true,
         "strict": true,
         "strictFunctionTypes": false,
@@ -28,5 +27,5 @@
         "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
         "typeRoots": ["./node_modules/@types"]
     },
-    "exclude": ["node_modules", "dist"]
+    "exclude": ["node_modules", "dist", "tests"]
 }
