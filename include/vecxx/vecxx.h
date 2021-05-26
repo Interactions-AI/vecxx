@@ -32,6 +32,8 @@ public:
 	return counter;
     }
 
+  virtual std::tuple<VecList_T, VecList_T> convert_to_ids_stack(const ListTokenList_T& list_tokens, long unsigned int len) const = 0;
+
 
 };
 
@@ -387,6 +389,21 @@ public:
 	}
 	return {ids, sz};
 	
+    }
+    virtual std::tuple<VecList_T, VecList_T> convert_to_ids_stack(const ListTokenList_T& list_tokens, long unsigned int len) const {
+
+	auto n = list_tokens.size();
+	VecList_T ids(len * n, _vocab->pad_id());
+	VecList_T lengths(n, 0);
+	for (auto i = 0; i < n; ++i) {
+	    TokenList_T pieces = convert_to_pieces(list_tokens[i]);
+	    auto insz = std::min<long unsigned int>(len, pieces.size());
+	    lengths[i] = (int)insz;
+	    for (auto j = 0; j < insz; ++j) {
+		ids[i * len + j] = piece_to_id(pieces[j]);
+	    }
+	}
+	return {ids, lengths};
     }
 };
 
