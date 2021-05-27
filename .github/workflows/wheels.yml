@@ -45,7 +45,7 @@ jobs:
 
     - uses: pypa/cibuildwheel@v1.11.0
       env:
-        CIBW_SKIP: cp27* cp39-win32
+        CIBW_SKIP: cp27* cp39-win*
 
     - name: Verify clean directory
       run: git diff --exit-code
