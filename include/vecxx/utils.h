@@ -10,6 +10,7 @@
 #include <functional>
 
 typedef std::vector<std::string> TokenList_T;
+typedef std::vector<std::vector<std::string> > ListTokenList_T;
 typedef std::unordered_map<std::string, std::string> TokenMap_T;
 typedef std::vector<TokenMap_T > TokenMapList_T;
 typedef std::map<std::string, int> Counter_T;

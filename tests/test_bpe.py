@@ -7,6 +7,12 @@ TEST_DATA = os.path.join(os.path.realpath(os.path.dirname(__file__)), "test_data
 TEST_SENTENCE = "My name is Dan . I am from Ann Arbor , Michigan , in Washtenaw County"
 TEST_SENTENCE_GOLD = "<GO> my name is dan . i am from ann ar@@ bor , michigan , in wash@@ ten@@ aw county <EOS>"
 TEST_IDS_GOLD = [1, 30, 265, 14, 2566, 5, 8, 158, 63, 10940, 525, 18637, 7, 3685, 7, 18, 14242, 1685, 2997, 4719, 2]
+TEST_N_SENTENCES = ["My name is Dan .", "I am from Ann Arbor , Michigan .", "in Washtenaw County"]
+TEST_N_IDS_GOLD = [
+    [1, 30, 265, 14, 2566, 5, 2],
+    [1, 8, 158, 63, 10940, 525, 18637, 7, 3685, 5, 2],
+    [1, 18, 14242, 1685, 2997, 4719, 2]
+]
 def test_pieces():
     bpe = BPEVocab(
         vocab_file=os.path.join(TEST_DATA, "vocab.30k"),
@@ -51,6 +57,29 @@ def test_ids():
     assert v[:l] == TEST_IDS_GOLD
     assert np.sum(v[l+1:]) == 0
     assert l == len(TEST_IDS_GOLD)
+
+    v, l = vec.convert_to_ids(TEST_SENTENCE.split(), 5)
+    assert v == TEST_IDS_GOLD[:5]
+    assert l == 5
+
+def test_ids_stack():
+    bpe = BPEVocab(
+        vocab_file=os.path.join(TEST_DATA, "vocab.30k"),
+        codes_file=os.path.join(TEST_DATA, "codes.30k")
+    )
+    vec = VocabVectorizer(bpe, transform=str.lower, emit_begin_tok=["<GO>"], emit_end_tok=["<EOS>"])
+
+    nv, nl = vec.convert_to_ids_stack([t.split() for t in TEST_N_SENTENCES], 12)
+    nv = np.array(nv).reshape((len(TEST_N_SENTENCES), 12))
+    for v, l, t in zip(nv, nl, TEST_N_IDS_GOLD):
+        assert len(v[:l]) == len(t)
+        assert all([a == b for a, b in zip(v[:l], t)])
+
+    nv, nl = vec.convert_to_ids_stack([t.split() for t in TEST_N_SENTENCES], 5)
+    nv = np.array(nv).reshape((len(TEST_N_SENTENCES), 5))
+    for v, l, t in zip(nv, nl, TEST_N_IDS_GOLD):
+        assert len(v[:l]) == 5
+        assert all([a == b for a, b in zip(v[:l], t[:5])])
 
 def test_ids_map():
     bpe = BPEVocab(

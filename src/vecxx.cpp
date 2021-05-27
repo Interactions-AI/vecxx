@@ -122,6 +122,10 @@ PYBIND11_MODULE(vecxx, m) {
 	   py::arg("tokens"),
 	   py::arg("max_len")=0
 	   )
+      .def("convert_to_ids_stack", &VocabVectorizer::convert_to_ids_stack,
+	   py::arg("tokens"),
+	   py::arg("len")
+	   )
       .def("count_pieces", &VocabVectorizer::count_pieces,
 	   py::arg("tokens")
 	   )
