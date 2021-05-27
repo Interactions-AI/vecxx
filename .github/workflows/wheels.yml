@@ -11,8 +11,7 @@ on:
       - published
 
 env:
-  CIBW_TEST_REQUIRES: pytest
-  CIBW_TEST_COMMAND: pytest vecxx/tests
+  CIBW_TEST_COMMAND: "echo Wheel installed"
 
 
 jobs:
