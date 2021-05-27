@@ -4,11 +4,8 @@ on:
   workflow_dispatch:
   pull_request:
   push:
-    branches:
-     - master
-  release:
-    types:
-      - published
+    tags:
+    - '*'
 
 env:
   CIBW_TEST_COMMAND: "echo Wheel installed"
@@ -57,21 +54,19 @@ jobs:
         path: wheelhouse/*.whl
 
 
-  #upload_all:
-  #  name: Upload if release
-  #  needs: [build_wheels, build_sdist]
-  #  runs-on: ubuntu-latest
-  #  if: github.event_name == 'release' && github.event.action == 'published'
+  upload_all:
+    name: Upload if release
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
 
-  #  steps:
-  #  - uses: actions/setup-python@v2
-
-  #  - uses: actions/download-artifact@v2
-  #    with:
-  #      name: artifact
-  #      path: dist
-
-  #  - uses: pypa/gh-action-pypi-publish@v1.4.2
-  #    with:
-  #      user: __token__
-  #      password: ${{ secrets.pypi_password }}
+    steps:
+    - uses: actions/setup-python@v2
+    - uses: actions/download-artifact@v2
+      with:
+        name: artifact
+        path: dist
+    - uses: pypa/gh-action-pypi-publish@v1.4.2
+      with:
+        user: __token__
+        password: ${{ secrets.pypi_password }}
