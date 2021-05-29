@@ -100,7 +100,7 @@ setup(
     author=About.AUTHOR,
     python_requires='>=3.6',
     ext_modules=ext_modules,
-    install_requires=["pybind11>=2.4"],
+    install_requires=["pybind11>=2.6.0"],
     extras_require={
         'test': ['pytest', 'pytest-forked'],
     },
