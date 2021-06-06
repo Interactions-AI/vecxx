@@ -13,23 +13,22 @@ const char *BPE_END_WORD = "</w>";
 const size_t BPE_END_WORD_LENGTH = 4;
 const char *BPE_DELIM = "@@";
 const size_t BPE_DELIM_LENGTH = 2;
-
-
-
-struct pair_hash {
-    template <class T1, class T2> size_t operator()(const std::pair<T1, T2> &p) const {
-	auto h1 = std::hash<T1>{}(p.first);
-	auto h2 = std::hash<T2>{}(p.second);
-	auto seed = h1;
-	// boost::hash_combine
-	return h2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-};
+const char *PACK_DELIM = "  ";
 
 typedef std::pair<std::string, std::string> TPS_T;
-typedef std::unordered_map<TPS_T, uint32_t, pair_hash> Codes_T;
-typedef std::unordered_map<std::string, TPS_T> RevCodes_T;
+typedef std::unordered_map<std::string, uint32_t> Codes_T;
+typedef std::unordered_map<std::string, std::string> RevCodes_T;
 
+TPS_T unpack_pair(const std::string& s) {
+    auto pos = s.find(PACK_DELIM);
+    return std::make_pair<std::string, std::string>(s.substr(0, pos), s.substr(pos + 2));
+}
+std::string pack_pair(const std::string& s1, const std::string& s2) {
+    return s1 + std::string(PACK_DELIM) + s2;
+}
+std::string pack_pair(const TPS_T& pair) {
+    return pack_pair(pair.first, pair.second);
+}
 
 void _decompose_bpe(const std::string s,
 		    TokenList_T &new_subwords,
@@ -38,25 +37,17 @@ void _decompose_bpe(const std::string s,
 		    bool is_final) {
     auto it = reversed_codes.find(s);
     if (it == reversed_codes.end()) {
-	// TODO this whole block below is just some sanity check
-	// if we cannot un-merge a subword, it has to be a char
-	std::string s2 = is_final ? s.substr(0, s.size() - BPE_END_WORD_LENGTH) : s;
-	int count = 0;
-	for (size_t j = 0; j < s2.size(); j++) {
-	    if ((s2[j] & 0xc0) != 0x80) {
-		count++;
-	    }
-	}
 	new_subwords.push_back(s);
 	return;
     }
-    std::string token1 = it->second.first;
+    TPS_T pair = unpack_pair(it->second);
+    std::string token1 = pair.first;
     if (vocab.find(token1 + BPE_DELIM) == vocab.end()) {
 	_decompose_bpe(token1, new_subwords, reversed_codes, vocab, false);
     } else {
 	new_subwords.push_back(token1);
     }
-    std::string token2 = it->second.second;
+    std::string token2 = pair.second;
     auto query = token2 + BPE_DELIM;
     if (is_final) {
 	query = token2.substr(0, token2.size() - BPE_END_WORD_LENGTH);
@@ -101,7 +92,7 @@ std::string process_bpe(TokenList_T &subwords,
 	int best_pair_id = -1;
 	auto best_pair = codes.end(); // TODO ugly hack that works
 	for (int i = 0; i < (int)(subwords.size() - 1); i++) {
-	    auto pair = std::make_pair(subwords[i], subwords[i + 1]);
+	    auto pair = pack_pair(subwords[i], subwords[i + 1]);
 	    auto it = codes.find(pair);
 	    int pair_rank = it == codes.end() ? -1 : it->second;
 	    if (pair_rank >= 0 && (best_pair_id == -1 || int(best_pair->second) > pair_rank)) {
@@ -116,10 +107,11 @@ std::string process_bpe(TokenList_T &subwords,
 	// otherwise, merge subWords
 	bool just_merged = false;
 	new_subwords = TokenList_T();
+	TPS_T best_pair_key = unpack_pair(best_pair->first);
 	for (size_t i = 0; i < subwords.size(); i++) {
 	    if ((i + 1 < subwords.size()) && (!just_merged) &&
-		subwords[i] == best_pair->first.first &&
-		subwords[i + 1] == best_pair->first.second) {
+		subwords[i] == best_pair_key.first &&
+		subwords[i + 1] == best_pair_key.second) {
 		new_subwords.push_back(subwords[i] + subwords[i + 1]);
 		just_merged = true;
 	    }
@@ -198,7 +190,7 @@ void read_codes_file(const std::string& infile,
     std::string line;
     while (getline(f, line)) {
 	auto splits = split(line);
-	auto pair = std::make_pair(splits[0], splits[1]);
+	auto pair = pack_pair(splits[0], splits[1]);
 	std::string concat = splits[0] + splits[1];
 	codes[pair] = codes.size();
 	reversed_codes[concat] = pair;
