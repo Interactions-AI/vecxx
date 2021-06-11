@@ -4,7 +4,6 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <unordered_map>
 #include <algorithm>
 #include <functional>
 #include "vecxx/utils.h"
@@ -16,8 +15,8 @@ const size_t BPE_DELIM_LENGTH = 2;
 const char *PACK_DELIM = "  ";
 
 typedef std::pair<std::string, std::string> TPS_T;
-typedef std::unordered_map<std::string, uint32_t> Codes_T;
-typedef std::unordered_map<std::string, std::string> RevCodes_T;
+typedef UnorderedMapStrInt<uint32_t> Codes_T;
+typedef UnorderedMapStrStr RevCodes_T;
 
 TPS_T unpack_pair(const std::string& s) {
     auto pos = s.find(PACK_DELIM);
@@ -35,12 +34,16 @@ void _decompose_bpe(const std::string s,
 		    const RevCodes_T &reversed_codes,
 		    const Vocab_T &vocab,
 		    bool is_final) {
-    auto it = reversed_codes.find(s);
-    if (it == reversed_codes.end()) {
+
+
+    bool present;
+    std::string pair_value;
+    std::tie(present, pair_value) = reversed_codes.find(s);
+    if (!present) {
 	new_subwords.push_back(s);
 	return;
     }
-    TPS_T pair = unpack_pair(it->second);
+    TPS_T pair = unpack_pair(pair_value);
     std::string token1 = pair.first;
     if (vocab.find(token1 + BPE_DELIM) == vocab.end()) {
 	_decompose_bpe(token1, new_subwords, reversed_codes, vocab, false);
@@ -89,25 +92,39 @@ std::string process_bpe(TokenList_T &subwords,
     TokenList_T new_subwords;
     while (subwords.size() > 1) {
 	// find the best pair
-	int best_pair_id = -1;
-	auto best_pair = codes.end(); // TODO ugly hack that works
+	uint32_t best_pair_id = 0;
+	uint32_t best_pair_rank = 0;
+	std::string best_key = "";
+	bool have_pair = false;
+	//auto best_pair = codes.end(); // TODO ugly hack that works
+	
 	for (int i = 0; i < (int)(subwords.size() - 1); i++) {
 	    auto pair = pack_pair(subwords[i], subwords[i + 1]);
-	    auto it = codes.find(pair);
-	    int pair_rank = it == codes.end() ? -1 : it->second;
-	    if (pair_rank >= 0 && (best_pair_id == -1 || int(best_pair->second) > pair_rank)) {
-		best_pair = it;
+	    //auto it = codes.find(pair);
+	    uint32_t pair_rank;
+	    bool found;
+
+	    std::tie(found, pair_rank) = codes.find(pair);
+	    if (found &&  (!have_pair || best_pair_rank > pair_rank)) {
 		best_pair_id = i;
+		best_key = pair;
+		best_pair_rank = pair_rank;
+		have_pair = true;
 	    }
+	    //int pair_rank = it == codes.end() ? -1 : it->second;
+	    //if (pair_rank >= 0 && (best_pair_id == -1 || int(best_pair->second) > pair_rank)) {
+	    //best_pair = it;
+	    //best_pair_id = i;
+	    //}
 	}
 	// if we cannot merge anything, stop
-	if (best_pair_id == -1) {
+	if (!have_pair) {
 	    break;
 	}
 	// otherwise, merge subWords
 	bool just_merged = false;
 	new_subwords = TokenList_T();
-	TPS_T best_pair_key = unpack_pair(best_pair->first);
+	TPS_T best_pair_key = unpack_pair(best_key);
 	for (size_t i = 0; i < subwords.size(); i++) {
 	    if ((i + 1 < subwords.size()) && (!just_merged) &&
 		subwords[i] == best_pair_key.first &&
@@ -192,7 +209,7 @@ void read_codes_file(const std::string& infile,
 	auto splits = split(line);
 	auto pair = pack_pair(splits[0], splits[1]);
 	std::string concat = splits[0] + splits[1];
-	codes[pair] = codes.size();
+	codes[pair] = (uint32_t)codes.size();
 	reversed_codes[concat] = pair;
     }
 }

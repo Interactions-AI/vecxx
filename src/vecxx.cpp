@@ -6,8 +6,9 @@
 namespace py = pybind11;
 
 PYBIND11_MODULE(vecxx, m) {
+
     #ifdef VERSION_INFO
-    m.attr("__version__") = VERSION_INFO;
+        m.attr("__version__") = VERSION_INFO;
     #endif
     m.doc() = "pybind11 vecxx plugin";
     py::class_<Vocab>(m, "Vocab")

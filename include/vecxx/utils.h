@@ -9,6 +9,53 @@
 #include <algorithm>
 #include <functional>
 
+
+class UnorderedMapStrStr
+{
+    std::unordered_map<std::string, std::string> _m;
+public:
+    UnorderedMapStrStr() {
+    }
+    ~UnorderedMapStrStr() {}
+    std::string& operator[](const std::string& key) {
+	return _m[key];
+    }
+    std::tuple<bool, std::string> find(const std::string& key) const {
+	auto it = _m.find(key);
+	if (it == _m.end()) {
+	    return std::make_tuple(false, "");
+	}
+	return std::make_tuple(true, it->second);
+    }
+    bool empty() const { return _m.empty(); }
+    size_t size() const { return _m.size(); }
+    size_t max_size() const { return _m.max_size(); }
+    
+};
+
+template <typename Int_T> class UnorderedMapStrInt
+{
+    std::unordered_map<std::string, Int_T> _m;
+public:
+    UnorderedMapStrInt() {
+    }
+    ~UnorderedMapStrInt() {}
+    Int_T& operator[](const std::string& key) {
+	return _m[key];
+    }
+    std::tuple<bool, Int_T> find(const std::string& key) const {
+	auto it = _m.find(key);
+	if (it == _m.end()) {
+  	    return std::make_tuple(false, 0);
+	}
+	return std::make_tuple(true, it->second);
+    }
+    bool empty() const { return _m.empty(); }
+    size_t size() const { return _m.size(); }
+    size_t max_size() const { return _m.max_size(); }
+    
+};
+
 typedef std::vector<std::string> TokenList_T;
 typedef std::vector<std::vector<std::string> > ListTokenList_T;
 typedef std::unordered_map<std::string, std::string> TokenMap_T;
