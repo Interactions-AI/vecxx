@@ -16,7 +16,7 @@ PYBIND11_MODULE(vecxx, m) {
       .def("apply", &Vocab::apply)
       ;
     py::class_<BPEVocab, Vocab>(m, "BPEVocab")
-      .def(py::init<std::string, std::string, int, int, int, int,
+      .def(py::init<std::string, std::string, Index_T, Index_T, Index_T, Index_T,
 	   std::string, std::string, std::string, std::string, const TokenList_T&>(),
 	   py::arg("vocab_file"),
 	   py::arg("codes_file"),
@@ -46,7 +46,7 @@ PYBIND11_MODULE(vecxx, m) {
       ;
       
     py::class_<WordVocab, Vocab>(m, "WordVocab")
-      .def(py::init<std::string, int, int, int, int,
+      .def(py::init<std::string, Index_T, Index_T, Index_T, Index_T,
 	   std::string, std::string, std::string, std::string, const TokenList_T&>(),
 	   py::arg("vocab_file"),
 	   py::arg("pad")=0,
@@ -60,7 +60,7 @@ PYBIND11_MODULE(vecxx, m) {
 	   py::arg("extra_tokens")=TokenList_T()
 	   
 	   )
-      .def(py::init<const TokenList_T&, int, int, int, int,
+      .def(py::init<const TokenList_T&, Index_T, Index_T, Index_T, Index_T,
 	   std::string, std::string, std::string, std::string, const TokenList_T&>(),
 	   py::arg("token_list"),
 	   py::arg("pad")=0,
@@ -74,7 +74,7 @@ PYBIND11_MODULE(vecxx, m) {
 	   py::arg("extra_tokens")=TokenList_T()
 	   
 	   )
-      .def(py::init<Counter_T, int, int, int, int,
+      .def(py::init<Counter_T, Index_T, Index_T, Index_T, Index_T,
 	   std::string, std::string, std::string, std::string, const TokenList_T&, int>(),
 	   py::arg("word_counts"),
 	   py::arg("pad")=0,

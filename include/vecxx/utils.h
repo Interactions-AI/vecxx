@@ -9,16 +9,50 @@
 #include <algorithm>
 #include <functional>
 
+typedef uint32_t Index_T;
 
-class UnorderedMapStrStr
+class MapStrStr
+{
+public:
+    MapStrStr() {}
+    virtual ~MapStrStr() {}
+    virtual std::tuple<bool, std::string> find(const std::string& key) const = 0;
+    virtual bool exists(const std::string& key) const = 0;
+    virtual size_t size() const = 0;
+    virtual size_t max_size() const = 0;
+};
+class MapStrInt
+{
+public:
+    MapStrInt() {}
+    virtual ~MapStrInt() {}
+    virtual std::tuple<bool, Index_T> find(const std::string& key) const = 0;
+    virtual bool exists(const std::string& key) const = 0;
+    virtual size_t size() const = 0;
+    virtual size_t max_size() const = 0;
+};
+
+
+class UnorderedMapStrStr : public MapStrStr
 {
     std::unordered_map<std::string, std::string> _m;
 public:
+    typedef typename std::unordered_map<std::string, std::string>::const_iterator const_iterator;
     UnorderedMapStrStr() {
     }
     ~UnorderedMapStrStr() {}
     std::string& operator[](const std::string& key) {
 	return _m[key];
+    }
+    const_iterator begin() const {
+	return _m.begin();
+    }
+    const_iterator end() const {
+	return _m.end();
+    }
+    bool exists(const std::string& key) const {
+	auto it = _m.find(key);
+	return (it != _m.end());
     }
     std::tuple<bool, std::string> find(const std::string& key) const {
 	auto it = _m.find(key);
@@ -33,23 +67,35 @@ public:
     
 };
 
-template <typename Int_T> class UnorderedMapStrInt
+class UnorderedMapStrInt : public MapStrInt
 {
-    std::unordered_map<std::string, Int_T> _m;
+    std::unordered_map<std::string, Index_T> _m;
 public:
+    typedef typename std::unordered_map<std::string, Index_T>::const_iterator const_iterator;
     UnorderedMapStrInt() {
     }
     ~UnorderedMapStrInt() {}
-    Int_T& operator[](const std::string& key) {
+    Index_T& operator[](const std::string& key) {
 	return _m[key];
     }
-    std::tuple<bool, Int_T> find(const std::string& key) const {
+    const_iterator begin() const {
+	return _m.begin();
+    }
+    const_iterator end() const {
+	return _m.end();
+    }
+    std::tuple<bool, Index_T> find(const std::string& key) const {
 	auto it = _m.find(key);
 	if (it == _m.end()) {
   	    return std::make_tuple(false, 0);
 	}
 	return std::make_tuple(true, it->second);
     }
+    bool exists(const std::string& key) const {
+	auto it = _m.find(key);
+	return (it != _m.end());
+    }
+
     bool empty() const { return _m.empty(); }
     size_t size() const { return _m.size(); }
     size_t max_size() const { return _m.max_size(); }
@@ -61,7 +107,7 @@ typedef std::vector<std::vector<std::string> > ListTokenList_T;
 typedef std::unordered_map<std::string, std::string> TokenMap_T;
 typedef std::vector<TokenMap_T > TokenMapList_T;
 typedef std::map<std::string, int> Counter_T;
-typedef std::unordered_map<std::string, int> Vocab_T;
+typedef std::unordered_map<std::string, uint32_t> SpecialVocab_T;
 typedef std::vector<int> VecList_T;
 typedef std::function<std::string(std::string)> Transform_T;
 
@@ -119,18 +165,21 @@ void upper(std::string& data)
 		   [](unsigned char c){ return std::toupper(c); });
 }
 
-void read_vocab_file(const std::string& infile, Vocab_T& vocab, int offset=4) {
+MapStrInt* read_vocab_file(const std::string& infile, int offset=4)
+{
     std::ifstream f(infile.c_str());
     std::string line;
     int i = 0;
+    UnorderedMapStrInt* vocab = new UnorderedMapStrInt();
     while (getline(f, line)) {
 	auto vecs = split(line);
 	auto token = vecs[0];
-	vocab[token] = i + offset;
+	(*vocab)[token] = i + offset;
 	++i;
 
 	
     }
+    return vocab;
 }
 
 #endif
