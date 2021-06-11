@@ -312,9 +312,20 @@ TokenList_T _apply_bpe_single(const TokenList_T& s,
     return split(cur);
 }
 
+void read_codes_mmap(const std::string& dir, Codes_T*& codes, RevCodes_T*& rev_codes) {
+    auto c = new PerfectHashMapStrInt(file_in_dir(dir, "ph-codes"));
+    auto rc = new PerfectHashMapStrStr(file_in_dir(dir, "ph-rcodes"));
+    codes = c;
+    rev_codes = rc;
 
+}
 void read_codes_file(const std::string& infile, Codes_T*& codes, RevCodes_T*& rev_codes)
 {
+    if (is_dir(infile)) {
+	std::cout << "file " << infile << " is a directory.  Assuming mmap" << std::endl;
+	read_codes_mmap(infile, codes, rev_codes);
+	return;
+    }
     auto c = new UnorderedMapStrInt();
     auto rc = new UnorderedMapStrStr();
     std::ifstream f(infile.c_str());

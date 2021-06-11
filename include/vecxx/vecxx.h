@@ -13,6 +13,31 @@
 #include "vecxx/utils.h"
 #include "vecxx/bpe.h"
 
+MapStrInt* read_vocab_mmap(const std::string& dir, int offset=4) {
+    // TODO: figure out vocab offset!
+    auto c = new PerfectHashMapStrInt(file_in_dir(dir, "ph-vocab"));
+    return c;
+}
+MapStrInt* read_vocab_file(const std::string& infile, int offset=4)
+{
+    if (is_dir(infile)) {
+	std::cout << "file " << infile << " is a directory.  Assuming mmap" << std::endl;
+	return read_vocab_mmap(infile);
+    }
+    std::ifstream f(infile.c_str());
+    std::string line;
+    int i = 0;
+    UnorderedMapStrInt* vocab = new UnorderedMapStrInt();
+    while (getline(f, line)) {
+	auto vecs = split(line);
+	auto token = vecs[0];
+	(*vocab)[token] = i + offset;
+	++i;
+
+	
+    }
+    return vocab;
+}
 
 class Vectorizer
 {

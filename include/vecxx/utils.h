@@ -1,6 +1,7 @@
 #ifndef __VECXX_UTILS_H__
 #define __VECXX_UTILS_H__
 
+#include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -163,23 +164,6 @@ void upper(std::string& data)
 {
     std::transform(data.begin(), data.end(), data.begin(),
 		   [](unsigned char c){ return std::toupper(c); });
-}
-
-MapStrInt* read_vocab_file(const std::string& infile, int offset=4)
-{
-    std::ifstream f(infile.c_str());
-    std::string line;
-    int i = 0;
-    UnorderedMapStrInt* vocab = new UnorderedMapStrInt();
-    while (getline(f, line)) {
-	auto vecs = split(line);
-	auto token = vecs[0];
-	(*vocab)[token] = i + offset;
-	++i;
-
-	
-    }
-    return vocab;
 }
 
 #endif

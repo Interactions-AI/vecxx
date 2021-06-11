@@ -69,6 +69,20 @@ bool file_exists(const std::string& path) {
 #endif
 }
 
+bool is_dir(const std::string& path)
+{
+#if defined(WIN32) || defined(_WIN32)
+    const DWORD what = GetFileAttributes(path.c_str());
+    return (what != INVALID_FILE_ATTRIBUTES &&
+            (what & FILE_ATTRIBUTE_DIRECTORY));
+#else
+    struct stat info;
+    if (stat(path.c_str(), &info) == -1)
+        return false;
+    return (S_ISDIR(info.st_mode)) ? (true) : (false);
+#endif
+}
+
 bool make_dir(const std::string& path) {
 #if defined(WIN32) || defined(_WIN32)
     return (CreateDirectory(path.c_str(), NULL)) ? (true): (false);
