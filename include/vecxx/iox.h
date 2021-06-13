@@ -1,17 +1,143 @@
 #ifndef __IOX_H__
 #define __IOX_H__
 
+/*
+ * This file contains platform independent system calls and IO.
+ * Should work on most systems.  The motivatation for most of this code
+ * is support for perfect hashing, which we rely on a single-header fork
+ * of PHF for (the header is distributed here as well).
+ *
+ * To facilitate fast load times, these hashes must be memory mapped, and
+ * to compute the perfect hashes, we rely on some platform specific calls,
+ * as well as for some filesystem type IO.
+ *
+ * For this library, we are targeting C++11 or later.
+ */ 
 #include <inttypes.h> /* PRIu32 PRIx32 */
 #include <stdint.h>   /* UINT32_MAX uint32_t uint64_t */
 #include "vecxx/phf.h"
 
 #if defined(WIN32) || defined(_WIN32)
 #  include <windows.h>
+#  define _CRT_RAND_S
+#  include <stdlib.h>
+   typedef HANDLE Handle_T;
 #else
 #  include <fcntl.h>
 #  include <sys/stat.h>
 #  include <sys/mman.h>
+   typedef int Handle_T;
 #endif
+
+// This is modified from the CPP file of PHF for windows
+static uint32_t randomseed() {
+#if defined(WIN32) || defined(_WIN32)
+    errno_t err;
+    uint32_t seed;
+    err = rand_s(&seed);
+    if (err != 0) {
+	std::cerr << "rand_s failed!" << std::endl;
+        return time(0);
+    }
+    return seed;
+#elif __APPLE__
+    /*
+     * As of macOS 10.13.6 ccaes_vng_ctr_crypt and drbg_update in
+     * libcorecrypto.dylib trigger a "Conditional jump or move on
+     * uninitialized value(s)". As of Valgrind 3.15.0.GIT (20190214)
+     * even when suppressed it still taints code indirectly conditioned
+     * on the seed value.
+     */
+    uint32_t seed = arc4random();
+    return seed;
+#elif defined BSD /* catchall for modern BSDs, which all have arc4random */
+    return arc4random();
+#else
+    FILE *fp;
+    uint32_t seed;
+    
+    if (!(fp = fopen("/dev/urandom", "r"))) {
+	std::cerr << "/dev/urandom access failed!" << std::endl;
+	return time(0);
+    }
+    
+    if (1 != fread(&seed, sizeof seed, 1, fp)) {
+	std::cerr << "/dev/urandom access failed!" << std::endl;
+	fclose(fp);
+	return time(0);
+    }
+    
+    fclose(fp);
+    
+    return seed;
+#endif
+}
+
+
+
+#if defined(WIN32) || defined(_WIN32)
+#if defined(_WIN64)
+    typedef int64_t Offset_T;
+#else
+    typedef uint32_t Offset_T;
+#endif
+
+// This is modified and simplified from:
+// https://github.com/alitrack/mman-win32/blob/master/mman.h
+// to fit a simpler read-only use-case
+void* mmap_read_win32(void *addr, size_t len, int fildes, Offset_T off=0)
+{
+    HANDLE fm, h;
+    
+    void * map = MAP_FAILED;
+    
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4293)
+#endif
+
+    const DWORD dwFileOffsetLow = (sizeof(OffsetType) <= sizeof(DWORD)) ?
+                    (DWORD)off : (DWORD)(off & 0xFFFFFFFFL);
+    const DWORD dwFileOffsetHigh = (sizeof(OffsetType) <= sizeof(DWORD)) ?
+                    (DWORD)0 : (DWORD)((off >> 32) & 0xFFFFFFFFL);
+    const DWORD protect = PAGE_READONLY;
+    const DWORD desiredAccess = PAGE_READONLY;
+    const OffsetType maxSize = off + (OffsetType)len;
+    const DWORD dwMaxSizeLow = (sizeof(OffsetType) <= sizeof(DWORD)) ?
+                    (DWORD)maxSize : (DWORD)(maxSize & 0xFFFFFFFFL);
+    const DWORD dwMaxSizeHigh = (sizeof(OffsetType) <= sizeof(DWORD)) ?
+                    (DWORD)0 : (DWORD)((maxSize >> 32) & 0xFFFFFFFFL);
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
+    h = (HANDLE)_get_osfhandle(filedes);
+    fm = CreateFileMapping(h, NULL, protect, dwMaxSizeHigh, dwMaxSizeLow, NULL);
+    if (fm == NULL)
+    {
+        return MAP_FAILED;
+    }
+    map = MapViewOfFile(fm, desiredAccess, dwFileOffsetHigh, dwFileOffsetLow, len);
+    CloseHandle(fm);
+    if (map == NULL)
+    {
+        return MAP_FAILED;
+    }
+
+    return map;
+}
+
+int munmap_win32(void *addr, size_t len)
+{
+    if (UnmapViewOfFile(addr))
+        return 0;
+    return -1;
+}
+
+#endif
+
+
 
 std::ifstream::pos_type file_size(std::string filename)
 {
@@ -26,9 +152,23 @@ const char* path_delimiter()
     return "/";
 #endif
 }
-typedef int Handle_T;
+
+
+std::string join_path(std::string p1, std::string p2) {
+    return p1 + std::string(path_delimiter()) + p2;
+}
+
 std::tuple<void*, Handle_T> mmap_read(std::string file, uint32_t file_size, bool shared=false)
 {
+    
+#if defined(WIN32) || defined(_WIN32)
+    HANDLE fd = ::CreateFileA(file.c_str(),
+			      GENERIC_READ,
+			      FILE_SHARE_READ,
+			      NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    assert(fd != INVALID_HANDLE_VALUE);
+    void* p = mmap_read_win32(NULL, file_size, fd, 0);
+#else
     int fd = open(file.c_str(), O_RDONLY);
     void* p = mmap(NULL,
 		   file_size,
@@ -36,7 +176,9 @@ std::tuple<void*, Handle_T> mmap_read(std::string file, uint32_t file_size, bool
 		   shared ? MAP_SHARED : MAP_PRIVATE,
 		   fd,
 		   0);
+#endif
     return {p, fd};
+    
 }
 
 bool file_exists(const std::string& path) {
@@ -135,6 +277,111 @@ void load_phf(phf& hash, const std::string& dir) {
     bin.read((char*)hash.g, hash.r*4);
     bin.close();
     
+}
+
+// TODO: dont hardcode the hash
+uint32_t _hash_key(const std::string& k, uint32_t h=1337) {
+  return phf_round32(k, h);
+}
+
+void compile_str_int(const UnorderedMapStrInt& c, std::string dir,size_t alpha=80, size_t lambda=4) {
+    size_t n = c.size();
+    std::string* k = new std::string[n];
+    size_t i = 0;
+    for (auto p = c.begin(); p != c.end(); ++p, ++i) {
+	k[i] = p->first;
+    }
+    phf phf;
+    uint32_t seed = randomseed();
+    PHF::init<std::string, 0>(&phf, k, n, lambda, alpha, seed);
+    PHF::compact(&phf);
+
+    auto m = phf.m;
+    save_phf(phf, dir);
+
+    uint32_t* h = new uint32_t[m];
+    memset(h, 0, m*4);
+    uint32_t* v = new uint32_t[m];
+    memset(v, 0, m*4);
+
+    for (auto p = c.begin(); p != c.end(); ++p) {
+	phf_hash_t idx = PHF::hash(&phf, p->first);
+	h[idx] = _hash_key(p->first);
+	v[idx] = (uint32_t)p->second;
+	
+    }
+    std::ofstream bin(file_in_dir(dir, "v.dat"),
+		      std::ios::out | std::ios::binary);
+    bin.write((const char*)v, m*4);
+    bin.close();
+
+    std::ofstream hbin(file_in_dir(dir, "hkey.dat"),
+		       std::ios::out | std::ios::binary);
+    hbin.write((const char*)h, m*4);
+    hbin.close();
+
+    PHF::destroy(&phf);
+    delete [] k;
+    delete [] h;
+    delete [] v;
+
+}
+
+void compile_str_str(const UnorderedMapStrStr& c, std::string dir, size_t alpha=80, size_t lambda=4) {
+    size_t n = c.size();
+    std::string* k = new std::string[n];
+    size_t i = 0;
+    for (auto p = c.begin(); p != c.end(); ++p, ++i) {
+	k[i] = p->first;
+    }
+    phf phf;
+    uint32_t seed = randomseed();
+    PHF::init<std::string, 0>(&phf, k, n, lambda, alpha, seed);
+    PHF::compact(&phf);
+
+    auto m = phf.m;
+    save_phf(phf, dir);
+
+
+    uint32_t* h = new uint32_t[m];
+    uint32_t* offsets = new uint32_t[m];
+    std::vector<char> flat;
+    memset(h, 0, m*4);
+    memset(offsets, 0, m*4);
+    assert(flat.size() <= UINT32_MAX);
+    for (auto p = c.begin(); p != c.end(); ++p) {
+	phf_hash_t idx = PHF::hash(&phf, p->first);
+	h[idx] = _hash_key(p->first);
+	// 4GB limit on values
+	offsets[idx] = (uint32_t)flat.size();
+	for (char ch : p->second) {
+	    flat.push_back(ch);
+	}
+	flat.push_back(0);
+    }
+    PHF::init<std::string, 0>(&phf, k, n, lambda, alpha, seed);
+    PHF::compact(&phf);
+    save_phf(phf, dir);    
+    PHF::destroy(&phf);
+    std::ofstream obin(file_in_dir(dir, "offsets.dat"),
+		       std::ios::out | std::ios::binary);
+    obin.write((const char*)offsets, m*4);
+    obin.close();
+    std::ofstream hbin(file_in_dir(dir, "hkey.dat"),
+		       std::ios::out | std::ios::binary);
+    hbin.write((const char*)h, m*4);
+    hbin.close();
+
+    std::ofstream cbin(file_in_dir(dir, "flat.dat"),
+		       std::ios::out | std::ios::binary);
+    cbin.write((const char*)&flat[0], flat.size());
+    cbin.close();
+
+
+    delete [] k;
+    delete [] h;
+    delete [] offsets;
+
 }
 
 #endif

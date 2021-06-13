@@ -32,6 +32,7 @@ PYBIND11_MODULE(vecxx, m) {
 	   
 	   )
       .def("lookup", &BPEVocab::lookup)
+      .def("compile_vocab", &BPEVocab::compile_vocab)
       .def_property_readonly("pad_id", &BPEVocab::pad_id)
       .def_property_readonly("start_id", &BPEVocab::start_id)
       .def_property_readonly("end_id", &BPEVocab::end_id)
@@ -90,6 +91,7 @@ PYBIND11_MODULE(vecxx, m) {
 	   
 	   )
       .def("lookup", &WordVocab::lookup)
+      .def("compile_vocab", &WordVocab::compile_vocab)
       .def_property_readonly("pad_id", &WordVocab::pad_id)
       .def_property_readonly("start_id", &WordVocab::start_id)
       .def_property_readonly("end_id", &WordVocab::end_id)

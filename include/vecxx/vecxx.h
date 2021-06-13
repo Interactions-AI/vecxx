@@ -13,8 +13,13 @@
 #include "vecxx/utils.h"
 #include "vecxx/bpe.h"
 
-MapStrInt* read_vocab_mmap(const std::string& dir, int offset=4) {
-    // TODO: figure out vocab offset!
+/*!
+ *  Create a memory-mapped perfect hash map, no offset can be applied
+ *  to the indices, as this wouldve been applied during the initia
+ *  compilation
+ *
+ */
+MapStrInt* read_vocab_mmap(const std::string& dir) {
     auto c = new PerfectHashMapStrInt(file_in_dir(dir, "ph-vocab"));
     return c;
 }
@@ -57,9 +62,8 @@ public:
 	return counter;
     }
 
-  virtual std::tuple<VecList_T, VecList_T> convert_to_ids_stack(const ListTokenList_T& list_tokens, long unsigned int len) const = 0;
-
-
+    virtual std::tuple<VecList_T, VecList_T> convert_to_ids_stack(const ListTokenList_T& list_tokens, long unsigned int len) const = 0;
+    
 };
 
 class MapVectorizer
@@ -116,6 +120,8 @@ public:
     virtual std::string start_str() const = 0;
     virtual std::string end_str() const = 0;
     virtual std::string unk_str() const = 0;
+    virtual void compile_vocab(const std::string& target_dir) const = 0;
+
 };
 class WordVocab : public Vocab
 {
@@ -243,6 +249,11 @@ public:
     virtual ~WordVocab() {
 	delete vocab;
     }
+    virtual void compile_vocab(const std::string& target_dir) const
+    {
+	compile_str_int(dynamic_cast<const UnorderedMapStrInt&>(*vocab), join_path(target_dir, "ph-vocab"));
+    }
+
     virtual Index_T pad_id() const { return _pad_id; }
     virtual Index_T start_id() const { return _start_id; }
     virtual Index_T end_id() const { return _end_id; }
@@ -283,6 +294,8 @@ public:
 	}
 	return output;
     }
+
+    
 };
 
 class BPEVocab : public Vocab
@@ -348,7 +361,12 @@ public:
     virtual std::string end_str() const { return _end_str; }
     virtual std::string unk_str() const { return _unk_str; }
     
-    
+    virtual void compile_vocab(const std::string& target_dir) const
+    {
+	compile_str_int(dynamic_cast<const UnorderedMapStrInt&>(*vocab), join_path(target_dir, "ph-vocab"));
+	compile_str_int(dynamic_cast<const UnorderedMapStrInt&>(*_codes), join_path(target_dir, "ph-codes"));
+	compile_str_str(dynamic_cast<const UnorderedMapStrStr&>(*_reversed_codes), join_path(target_dir, "ph-rcodes"));
+    }
     virtual Index_T lookup(const std::string& s, const Transform_T& transform) const {
 	auto p = special_tokens.find(s);
 	if (p != special_tokens.end()) {
