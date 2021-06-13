@@ -159,6 +159,11 @@ void lower(std::string& data)
     std::transform(data.begin(), data.end(), data.begin(),
 		   [](unsigned char c){ return std::tolower(c); });
 }
+std::string lowercase(const std::string& data) {
+    auto c = data;
+    lower(c);
+    return c;
+}
 
 void upper(std::string& data)
 {
