@@ -80,6 +80,7 @@ The result of this will be:
 
 ### Vocab compilation
 
+```python
 >>> import vecxx
 >>> b = vecxx.BPEVocab('/data/reddit/vocab.30k', '/data/reddit/codes.30k', extra_tokens=["[CLS]", "[MASK]"])
 >>> b.compile('blah')
@@ -100,6 +101,7 @@ Reallocating
 file blah is a directory.  Assuming mmap
 Reallocating
 Reallocating
+```
 
 ## JS/TS bindings
 
