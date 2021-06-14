@@ -22,7 +22,7 @@ typedef MapStrStr RevCodes_T;
 // TODO: return tuple of data, fd
 uint32_t* _read_uint32s(std::string fname, int sz) {
     void* data = NULL;
-    int fd = 0;
+    Handle_T fd = 0;
     std::tie(data, fd) = mmap_read(fname, sz*4);
     uint32_t* _d = reinterpret_cast<uint32_t*>(data);
     return _d;
@@ -30,7 +30,7 @@ uint32_t* _read_uint32s(std::string fname, int sz) {
 std::tuple<char*, uint32_t> _read_chars(std::string fname) {
     uint32_t n = (uint32_t)file_size(fname);
     void* data = NULL;
-    int fd = 0;
+    Handle_T fd = 0;
     std::tie(data, fd) = mmap_read(fname, n);
     char* _d = reinterpret_cast<char*>(data);
     return std::make_tuple(_d, n);

@@ -160,7 +160,7 @@ public:
 	special_tokens[_start_str] = _start_id;
 	special_tokens[_end_str] = _end_id;
 	special_tokens[_unk_str] = _unk_id;
-	_offset = std::max({pad, start, end, unk}) + 1;
+	_offset = std::max<uint32_t>({pad, start, end, unk}) + 1;
 	for (auto token : extra_tokens) {
 	    special_tokens[token] = _offset;
 	    ++_offset;
@@ -192,7 +192,7 @@ public:
 	special_tokens[_end_str] = _end_id;
 	special_tokens[_unk_str] = _unk_id;
 	auto v = new UnorderedMapStrInt();
-	_offset = std::max({pad, start, end, unk}) + 1;
+	_offset = std::max<uint32_t>({pad, start, end, unk}) + 1;
 	for (auto token : extra_tokens) {
 	    special_tokens[token] = _offset;
 	    ++_offset;
@@ -229,7 +229,7 @@ public:
 	special_tokens[_start_str] = _start_id;
 	special_tokens[_end_str] = _end_id;
 	special_tokens[_unk_str] = _unk_id;
-	_offset = std::max({pad, start, end, unk}) + 1;
+	_offset = std::max<uint32_t>({pad, start, end, unk}) + 1;
 	auto v = new UnorderedMapStrInt();
 	for (auto token : extra_tokens) {
 	    special_tokens[token] = _offset;
@@ -338,7 +338,7 @@ public:
 	special_tokens[_start_str] = _start_id;
 	special_tokens[_end_str] = _end_id;
 	special_tokens[_unk_str] = _unk_id;
-	_offset = std::max({pad, start, end, unk}) + 1;
+	_offset = std::max<uint32_t>({pad, start, end, unk}) + 1;
 	for (auto token : extra_tokens) {
 	    special_tokens[token] = _offset;
 	    ++_offset;

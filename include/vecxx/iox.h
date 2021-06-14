@@ -20,7 +20,7 @@
 #if defined(WIN32) || defined(_WIN32)
 #  include <windows.h>
 #  define _CRT_RAND_S
-#  include <stdlib.h>
+#  include <cstdlib>
    typedef HANDLE Handle_T;
 #else
 #  include <fcntl.h>
@@ -85,44 +85,43 @@ static uint32_t randomseed() {
 // This is modified and simplified from:
 // https://github.com/alitrack/mman-win32/blob/master/mman.h
 // to fit a simpler read-only use-case
-void* mmap_read_win32(void *addr, size_t len, int fildes, Offset_T off=0)
+void* mmap_read_win32(void *addr, size_t len, HANDLE h, Offset_T off=0)
 {
-    HANDLE fm, h;
+    HANDLE fm;
     
-    void * map = MAP_FAILED;
+    void * map = NULL;
     
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4293)
 #endif
 
-    const DWORD dwFileOffsetLow = (sizeof(OffsetType) <= sizeof(DWORD)) ?
+    const DWORD dwFileOffsetLow = (sizeof(Offset_T) <= sizeof(DWORD)) ?
                     (DWORD)off : (DWORD)(off & 0xFFFFFFFFL);
-    const DWORD dwFileOffsetHigh = (sizeof(OffsetType) <= sizeof(DWORD)) ?
+    const DWORD dwFileOffsetHigh = (sizeof(Offset_T) <= sizeof(DWORD)) ?
                     (DWORD)0 : (DWORD)((off >> 32) & 0xFFFFFFFFL);
     const DWORD protect = PAGE_READONLY;
     const DWORD desiredAccess = PAGE_READONLY;
-    const OffsetType maxSize = off + (OffsetType)len;
-    const DWORD dwMaxSizeLow = (sizeof(OffsetType) <= sizeof(DWORD)) ?
+    const Offset_T maxSize = off + (Offset_T)len;
+    const DWORD dwMaxSizeLow = (sizeof(Offset_T) <= sizeof(DWORD)) ?
                     (DWORD)maxSize : (DWORD)(maxSize & 0xFFFFFFFFL);
-    const DWORD dwMaxSizeHigh = (sizeof(OffsetType) <= sizeof(DWORD)) ?
+    const DWORD dwMaxSizeHigh = (sizeof(Offset_T) <= sizeof(DWORD)) ?
                     (DWORD)0 : (DWORD)((maxSize >> 32) & 0xFFFFFFFFL);
 
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
 
-    h = (HANDLE)_get_osfhandle(filedes);
     fm = CreateFileMapping(h, NULL, protect, dwMaxSizeHigh, dwMaxSizeLow, NULL);
     if (fm == NULL)
     {
-        return MAP_FAILED;
+        return NULL;
     }
     map = MapViewOfFile(fm, desiredAccess, dwFileOffsetHigh, dwFileOffsetLow, len);
     CloseHandle(fm);
     if (map == NULL)
     {
-        return MAP_FAILED;
+        return NULL;
     }
 
     return map;
@@ -184,7 +183,7 @@ std::tuple<void*, Handle_T> mmap_read(std::string file, uint32_t file_size, bool
 bool file_exists(const std::string& path) {
     
 #if defined(WIN32) || defined(_WIN32)
-    const DWORD what = GetFileAttributes(path.c_str());
+    const DWORD what = GetFileAttributesA(path.c_str());
     
     if (what == INVALID_FILE_ATTRIBUTES)
     {
@@ -197,7 +196,7 @@ bool file_exists(const std::string& path) {
 			  NULL, errCode,
 			  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 			  (LPTSTR) &err, 0, NULL);
-	    raise std::exception(err);
+	    throw std::exception(err);
 	}
 	return false;
     }
@@ -214,7 +213,7 @@ bool file_exists(const std::string& path) {
 bool is_dir(const std::string& path)
 {
 #if defined(WIN32) || defined(_WIN32)
-    const DWORD what = GetFileAttributes(path.c_str());
+    const DWORD what = GetFileAttributesA(path.c_str());
     return (what != INVALID_FILE_ATTRIBUTES &&
             (what & FILE_ATTRIBUTE_DIRECTORY));
 #else
@@ -227,7 +226,7 @@ bool is_dir(const std::string& path)
 
 bool make_dir(const std::string& path) {
 #if defined(WIN32) || defined(_WIN32)
-    return (CreateDirectory(path.c_str(), NULL)) ? (true): (false);
+    return (CreateDirectoryA(path.c_str(), NULL)) ? (true): (false);
 #else
     
     if (::mkdir(path.c_str(), 0777) == 0)
