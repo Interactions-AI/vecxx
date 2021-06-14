@@ -363,9 +363,22 @@ public:
     
     virtual void compile_vocab(const std::string& target_dir) const
     {
-	compile_str_int(dynamic_cast<const UnorderedMapStrInt&>(*vocab), join_path(target_dir, "ph-vocab"));
-	compile_str_int(dynamic_cast<const UnorderedMapStrInt&>(*_codes), join_path(target_dir, "ph-codes"));
-	compile_str_str(dynamic_cast<const UnorderedMapStrStr&>(*_reversed_codes), join_path(target_dir, "ph-rcodes"));
+	if (!file_exists(target_dir)) {
+	    std::cerr << "Creating " << target_dir << std::endl;
+	    make_dir(target_dir);
+	}
+	std::cout << "Creating compiled vocab " << std::endl;
+	auto vocab_file = join_path(target_dir, "ph-vocab");
+	compile_str_int(dynamic_cast<const UnorderedMapStrInt&>(*vocab),
+			vocab_file);
+	auto codes_file = join_path(target_dir, "ph-codes");
+	
+	std::cout << "Creating compiled codes " << codes_file << std::endl;
+	compile_str_int(dynamic_cast<const UnorderedMapStrInt&>(*_codes),
+			codes_file);
+	auto rcodes_file = join_path(target_dir, "ph-rcodes");
+	compile_str_str(dynamic_cast<const UnorderedMapStrStr&>(*_reversed_codes),
+			rcodes_file);
     }
     virtual Index_T lookup(const std::string& s, const Transform_T& transform) const {
 	auto p = special_tokens.find(s);

@@ -244,6 +244,7 @@ std::string file_in_dir(const std::string& dir, const std::string& basename) {
 
 void save_phf(const phf& hash, const std::string& dir) {
     if (!file_exists(dir)) {
+	std::cerr << "creating " << dir << std::endl;
 	make_dir(dir);
     }
     std::ofstream ofs(file_in_dir(dir, "md.txt"));
