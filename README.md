@@ -42,8 +42,6 @@ int main(int argc, char** argv) {
 ### Vocab compilation
 
 ```c++
-  std::string vocab_file(argv[1]);
-  std::string codes_file(argv[2]);
   auto v = new BPEVocab(vocab_file, codes_file);
   v->compile_vocab(compiled_dir);
   delete v;
