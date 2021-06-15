@@ -250,7 +250,7 @@ public:
     }
     virtual void compile_vocab(const std::string& target_dir) const
     {
-	compile_str_int(dynamic_cast<const UnorderedMapStrInt&>(*vocab), join_path(target_dir, "ph-vocab"));
+	compile_str_int( (UnorderedMapStrInt&)(*vocab), join_path(target_dir, "ph-vocab"));
     }
 
     virtual Index_T pad_id() const { return _pad_id; }
@@ -366,14 +366,14 @@ public:
 	    make_dir(target_dir);
 	}
 	auto vocab_file = join_path(target_dir, "ph-vocab");
-	compile_str_int(dynamic_cast<const UnorderedMapStrInt&>(*vocab),
+	compile_str_int((UnorderedMapStrInt&)(*vocab),
 			vocab_file);
 	auto codes_file = join_path(target_dir, "ph-codes");
 	
-	compile_str_int(dynamic_cast<const UnorderedMapStrInt&>(*_codes),
+	compile_str_int((const UnorderedMapStrInt&)(*_codes),
 			codes_file);
 	auto rcodes_file = join_path(target_dir, "ph-rcodes");
-	compile_str_str(dynamic_cast<const UnorderedMapStrStr&>(*_reversed_codes),
+	compile_str_str((const UnorderedMapStrStr&)(*_reversed_codes),
 			rcodes_file);
     }
     virtual Index_T lookup(const std::string& s, const Transform_T& transform) const {
