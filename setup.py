@@ -5,7 +5,7 @@ from setuptools.command.build_ext import build_ext
 import pybind11
 
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 
 class About(object):
