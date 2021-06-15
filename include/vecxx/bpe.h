@@ -20,29 +20,32 @@ typedef MapStrInt Codes_T;
 typedef MapStrStr RevCodes_T;
 
 // TODO: return tuple of data, fd
-uint32_t* _read_uint32s(std::string fname, int sz) {
+std::tuple<uint32_t*, Handle_T> _read_uint32s(std::string fname, int sz) {
     void* data = NULL;
     Handle_T fd = 0;
     std::tie(data, fd) = mmap_read(fname, sz*4);
-    uint32_t* _d = reinterpret_cast<uint32_t*>(data);
-    return _d;
+    uint32_t* d = reinterpret_cast<uint32_t*>(data);
+    return std::make_tuple(d, fd);;
 }
-std::tuple<char*, uint32_t> _read_chars(std::string fname) {
+std::tuple<char*, uint32_t, Handle_T> _read_chars(std::string fname) {
     uint32_t n = (uint32_t)file_size(fname);
     void* data = NULL;
     Handle_T fd = 0;
     std::tie(data, fd) = mmap_read(fname, n);
-    char* _d = reinterpret_cast<char*>(data);
-    return std::make_tuple(_d, n);
+    char* d = reinterpret_cast<char*>(data);
+    return std::make_tuple(d, n, fd);
 }
-// TODO: do propery memory unmapping
+
 class PerfectHashMapStrStr : public MapStrStr
 {
     phf _phf;
     uint32_t* _k;
+    Handle_T _k_fd;
     uint32_t* _offsets;
-    const char* _data;
+    Handle_T _offsets_fd;
+    char* _data;
     uint32_t _data_len;
+    Handle_T _data_fd;
     uint32_t _hash_key(const std::string& k) const {
 	return phf_round32(k, 1337);
     }
@@ -50,15 +53,24 @@ public:
     PerfectHashMapStrStr(const std::string& dir)
 	: _k(NULL), _offsets(NULL), _data(NULL), _data_len(0) {
 	load_phf(_phf, dir);
-	_offsets = _read_uint32s(file_in_dir(dir, "offsets.dat"), _phf.m);
-	_k = _read_uint32s(file_in_dir(dir, "hkey.dat"), _phf.m);
-	std::tie(_data, _data_len) = _read_chars(file_in_dir(dir, "flat.dat"));
+	std::tie(_offsets, _offsets_fd) = _read_uint32s(file_in_dir(dir, "offsets.dat"), _phf.m);
+	std::tie(_k, _k_fd) = _read_uint32s(file_in_dir(dir, "hkey.dat"), _phf.m);
+	std::tie(_data, _data_len, _data_fd) = _read_chars(file_in_dir(dir, "flat.dat"));
     }
     ~PerfectHashMapStrStr() {
-	//delete_array(_k);
-	//delete_array(_offsets);
-	//delete_array(_data);
-	
+	if (_k != NULL) {
+	    munmap(_k, _phf.m*4);
+	    close_file(_k_fd);
+	}
+	if (_offsets != NULL) {
+	    munmap(_offsets, _phf.m*4);
+	    close_file(_offsets_fd);
+	}
+	if (_data != NULL) {
+	    munmap(_data, _data_len);
+	    close_file(_data_fd);
+	}
+	PHF::destroy(&_phf);
     }
     
     bool exists(const std::string& key) const {
@@ -98,19 +110,29 @@ class PerfectHashMapStrInt : public MapStrInt
     phf _phf;
     uint32_t* _k;
     uint32_t* _v;
+    Handle_T _k_fd;
+    Handle_T _v_fd;
     uint32_t _hash_key(const std::string& k) const {
 	return phf_round32(k, 1337);
     }
 public:
     PerfectHashMapStrInt(const std::string& dir) : _k(NULL), _v(NULL) {
 	load_phf(_phf, dir);
-	_k = _read_uint32s(file_in_dir(dir, "hkey.dat"), _phf.m);
-	_v = _read_uint32s(file_in_dir(dir, "v.dat"), _phf.m);
+	std::tie(_k, _k_fd) = _read_uint32s(file_in_dir(dir, "hkey.dat"), _phf.m);
+	std::tie(_v, _v_fd) = _read_uint32s(file_in_dir(dir, "v.dat"), _phf.m);
 	
     }
     ~PerfectHashMapStrInt() {
-	//delete_array(_v);
-	//delete_array(_k);
+	if (_k != NULL) {
+	    munmap(_k, _phf.m*4);
+	    close_file(_k_fd);
+	}	
+	if (_v != NULL) {
+	    munmap(_v, _phf.m*4);
+	    close_file(_v_fd);
+	}
+	PHF::destroy(&_phf);
+
     }
     bool exists(const std::string& key) const {
 	phf_hash_t idx = PHF::hash(&_phf, key);
@@ -322,7 +344,6 @@ void read_codes_mmap(const std::string& dir, Codes_T*& codes, RevCodes_T*& rev_c
 void read_codes_file(const std::string& infile, Codes_T*& codes, RevCodes_T*& rev_codes)
 {
     if (is_dir(infile)) {
-	std::cout << "file " << infile << " is a directory.  Assuming mmap" << std::endl;
 	read_codes_mmap(infile, codes, rev_codes);
 	return;
     }

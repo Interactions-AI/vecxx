@@ -26,6 +26,7 @@
 #  include <fcntl.h>
 #  include <sys/stat.h>
 #  include <sys/mman.h>
+#  include <unistd.h>
    typedef int Handle_T;
 #endif
 
@@ -127,7 +128,7 @@ void* mmap_read_win32(void *addr, size_t len, HANDLE h, Offset_T off=0)
     return map;
 }
 
-int munmap_win32(void *addr, size_t len)
+int munmap(void *addr, size_t len)
 {
     if (UnmapViewOfFile(addr))
         return 0;
@@ -178,6 +179,13 @@ std::tuple<void*, Handle_T> mmap_read(std::string file, uint32_t file_size, bool
 #endif
     return {p, fd};
     
+}
+void close_file(Handle_T fd) {
+#if defined(WIN32) || defined(_WIN32)
+    CloseHandle(fd);
+#else
+    close(fd);
+#endif
 }
 
 bool file_exists(const std::string& path) {
@@ -269,10 +277,11 @@ void load_phf(phf& hash, const std::string& dir) {
     ifs >> hash.g_op;
     std::ifstream bin(file_in_dir(dir, "hash.dat"), std::ios::in | std::ios::binary);
     if (r != hash.r || hash.g == NULL) {
-	std::cout << "Reallocating" << std::endl;
-	phf_freearray(hash.g, hash.r);
+	if (hash.g != NULL) {
+	    phf_freearray(hash.g, hash.r);
+	}
 	hash.r = r;
-	phf_calloc(&hash.g, hash.r*4);
+	phf_calloc(&hash.g, hash.r);
     }
     bin.read((char*)hash.g, hash.r*4);
     bin.close();
@@ -294,7 +303,7 @@ void compile_str_int(const UnorderedMapStrInt& c, std::string dir,size_t alpha=8
     phf phf;
     uint32_t seed = randomseed();
     PHF::init<std::string, 0>(&phf, k, n, lambda, alpha, seed);
-    PHF::compact(&phf);
+    //PHF::compact(&phf);
 
     auto m = phf.m;
     save_phf(phf, dir);
@@ -337,7 +346,7 @@ void compile_str_str(const UnorderedMapStrStr& c, std::string dir, size_t alpha=
     phf phf;
     uint32_t seed = randomseed();
     PHF::init<std::string, 0>(&phf, k, n, lambda, alpha, seed);
-    PHF::compact(&phf);
+    //PHF::compact(&phf);
 
     auto m = phf.m;
     save_phf(phf, dir);
@@ -360,7 +369,7 @@ void compile_str_str(const UnorderedMapStrStr& c, std::string dir, size_t alpha=
 	flat.push_back(0);
     }
     PHF::init<std::string, 0>(&phf, k, n, lambda, alpha, seed);
-    PHF::compact(&phf);
+    //PHF::compact(&phf);
     save_phf(phf, dir);    
     PHF::destroy(&phf);
     std::ofstream obin(file_in_dir(dir, "offsets.dat"),

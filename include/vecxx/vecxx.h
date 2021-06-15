@@ -26,7 +26,6 @@ MapStrInt* read_vocab_mmap(const std::string& dir) {
 MapStrInt* read_vocab_file(const std::string& infile, int offset=4)
 {
     if (is_dir(infile)) {
-	std::cout << "file " << infile << " is a directory.  Assuming mmap" << std::endl;
 	return read_vocab_mmap(infile);
     }
     std::ifstream f(infile.c_str());
@@ -364,16 +363,13 @@ public:
     virtual void compile_vocab(const std::string& target_dir) const
     {
 	if (!file_exists(target_dir)) {
-	    std::cerr << "Creating " << target_dir << std::endl;
 	    make_dir(target_dir);
 	}
-	std::cout << "Creating compiled vocab " << std::endl;
 	auto vocab_file = join_path(target_dir, "ph-vocab");
 	compile_str_int(dynamic_cast<const UnorderedMapStrInt&>(*vocab),
 			vocab_file);
 	auto codes_file = join_path(target_dir, "ph-codes");
 	
-	std::cout << "Creating compiled codes " << codes_file << std::endl;
 	compile_str_int(dynamic_cast<const UnorderedMapStrInt&>(*_codes),
 			codes_file);
 	auto rcodes_file = join_path(target_dir, "ph-rcodes");
