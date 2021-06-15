@@ -6,8 +6,9 @@
 namespace py = pybind11;
 
 PYBIND11_MODULE(vecxx, m) {
+
     #ifdef VERSION_INFO
-    m.attr("__version__") = VERSION_INFO;
+        m.attr("__version__") = VERSION_INFO;
     #endif
     m.doc() = "pybind11 vecxx plugin";
     py::class_<Vocab>(m, "Vocab")
@@ -15,7 +16,7 @@ PYBIND11_MODULE(vecxx, m) {
       .def("apply", &Vocab::apply)
       ;
     py::class_<BPEVocab, Vocab>(m, "BPEVocab")
-      .def(py::init<std::string, std::string, int, int, int, int,
+      .def(py::init<std::string, std::string, Index_T, Index_T, Index_T, Index_T,
 	   std::string, std::string, std::string, std::string, const TokenList_T&>(),
 	   py::arg("vocab_file"),
 	   py::arg("codes_file"),
@@ -31,6 +32,7 @@ PYBIND11_MODULE(vecxx, m) {
 	   
 	   )
       .def("lookup", &BPEVocab::lookup)
+      .def("compile_vocab", &BPEVocab::compile_vocab)
       .def_property_readonly("pad_id", &BPEVocab::pad_id)
       .def_property_readonly("start_id", &BPEVocab::start_id)
       .def_property_readonly("end_id", &BPEVocab::end_id)
@@ -45,7 +47,7 @@ PYBIND11_MODULE(vecxx, m) {
       ;
       
     py::class_<WordVocab, Vocab>(m, "WordVocab")
-      .def(py::init<std::string, int, int, int, int,
+      .def(py::init<std::string, Index_T, Index_T, Index_T, Index_T,
 	   std::string, std::string, std::string, std::string, const TokenList_T&>(),
 	   py::arg("vocab_file"),
 	   py::arg("pad")=0,
@@ -59,7 +61,7 @@ PYBIND11_MODULE(vecxx, m) {
 	   py::arg("extra_tokens")=TokenList_T()
 	   
 	   )
-      .def(py::init<const TokenList_T&, int, int, int, int,
+      .def(py::init<const TokenList_T&, Index_T, Index_T, Index_T, Index_T,
 	   std::string, std::string, std::string, std::string, const TokenList_T&>(),
 	   py::arg("token_list"),
 	   py::arg("pad")=0,
@@ -73,7 +75,7 @@ PYBIND11_MODULE(vecxx, m) {
 	   py::arg("extra_tokens")=TokenList_T()
 	   
 	   )
-      .def(py::init<Counter_T, int, int, int, int,
+      .def(py::init<Counter_T, Index_T, Index_T, Index_T, Index_T,
 	   std::string, std::string, std::string, std::string, const TokenList_T&, int>(),
 	   py::arg("word_counts"),
 	   py::arg("pad")=0,
@@ -89,6 +91,7 @@ PYBIND11_MODULE(vecxx, m) {
 	   
 	   )
       .def("lookup", &WordVocab::lookup)
+      .def("compile_vocab", &WordVocab::compile_vocab)
       .def_property_readonly("pad_id", &WordVocab::pad_id)
       .def_property_readonly("start_id", &WordVocab::start_id)
       .def_property_readonly("end_id", &WordVocab::end_id)

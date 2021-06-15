@@ -13,6 +13,35 @@
 #include "vecxx/utils.h"
 #include "vecxx/bpe.h"
 
+/*!
+ *  Create a memory-mapped perfect hash map, no offset can be applied
+ *  to the indices, as this wouldve been applied during the initia
+ *  compilation
+ *
+ */
+MapStrInt* read_vocab_mmap(const std::string& dir) {
+    auto c = new PerfectHashMapStrInt(file_in_dir(dir, "ph-vocab"));
+    return c;
+}
+MapStrInt* read_vocab_file(const std::string& infile, int offset=4)
+{
+    if (is_dir(infile)) {
+	return read_vocab_mmap(infile);
+    }
+    std::ifstream f(infile.c_str());
+    std::string line;
+    int i = 0;
+    UnorderedMapStrInt* vocab = new UnorderedMapStrInt();
+    while (getline(f, line)) {
+	auto vecs = split(line);
+	auto token = vecs[0];
+	(*vocab)[token] = i + offset;
+	++i;
+
+	
+    }
+    return vocab;
+}
 
 class Vectorizer
 {
@@ -32,9 +61,8 @@ public:
 	return counter;
     }
 
-  virtual std::tuple<VecList_T, VecList_T> convert_to_ids_stack(const ListTokenList_T& list_tokens, long unsigned int len) const = 0;
-
-
+    virtual std::tuple<VecList_T, VecList_T> convert_to_ids_stack(const ListTokenList_T& list_tokens, long unsigned int len) const = 0;
+    
 };
 
 class MapVectorizer
@@ -81,16 +109,18 @@ class Vocab
 public:
     Vocab() {}
     virtual ~Vocab() {}
-    virtual int lookup(const std::string& s, const Transform_T& transform) const = 0;
+    virtual Index_T lookup(const std::string& s, const Transform_T& transform) const = 0;
     virtual TokenList_T apply(const TokenList_T& tokens, const Transform_T& transform) const = 0;
-    virtual int pad_id() const = 0;
-    virtual int start_id() const = 0;
-    virtual int end_id() const = 0;
-    virtual int unk_id() const = 0;
+    virtual Index_T pad_id() const = 0;
+    virtual Index_T start_id() const = 0;
+    virtual Index_T end_id() const = 0;
+    virtual Index_T unk_id() const = 0;
     virtual std::string pad_str() const = 0;
     virtual std::string start_str() const = 0;
     virtual std::string end_str() const = 0;
     virtual std::string unk_str() const = 0;
+    virtual void compile_vocab(const std::string& target_dir) const = 0;
+
 };
 class WordVocab : public Vocab
 {
@@ -105,13 +135,13 @@ protected:
     std::string _end_str;
     std::string _unk_str;
 public:
-    Vocab_T vocab;
-    Vocab_T special_tokens;
+    MapStrInt* vocab;
+    SpecialVocab_T special_tokens;
     WordVocab(std::string vocab_file,
-	      int pad = 0,
-	      int start = 1,
-	      int end = 2,
-	      int unk = 3,
+	      Index_T pad = 0,
+	      Index_T start = 1,
+	      Index_T end = 2,
+	      Index_T unk = 3,
 	      std::string pad_str = "<PAD>",
 	      std::string start_str = "<GO>",
 	      std::string end_str = "<EOS>",
@@ -129,20 +159,19 @@ public:
 	special_tokens[_start_str] = _start_id;
 	special_tokens[_end_str] = _end_id;
 	special_tokens[_unk_str] = _unk_id;
-	_offset = std::max({pad, start, end, unk}) + 1;
+	_offset = std::max<uint32_t>({pad, start, end, unk}) + 1;
 	for (auto token : extra_tokens) {
 	    special_tokens[token] = _offset;
 	    ++_offset;
 	}
 	   
-	read_vocab_file(vocab_file, vocab, _offset);
-	    
+	vocab = read_vocab_file(vocab_file, _offset);
     }
     WordVocab(const TokenList_T& vocab_list,
-	      int pad = 0,
-	      int start = 1,
-	      int end = 2,
-	      int unk = 3,
+	      Index_T pad = 0,
+	      Index_T start = 1,
+	      Index_T end = 2,
+	      Index_T unk = 3,
 	      std::string pad_str = "<PAD>",
 	      std::string start_str = "<GO>",
 	      std::string end_str = "<EOS>",
@@ -161,24 +190,26 @@ public:
 	special_tokens[_start_str] = _start_id;
 	special_tokens[_end_str] = _end_id;
 	special_tokens[_unk_str] = _unk_id;
-	_offset = std::max({pad, start, end, unk}) + 1;
+	auto v = new UnorderedMapStrInt();
+	_offset = std::max<uint32_t>({pad, start, end, unk}) + 1;
 	for (auto token : extra_tokens) {
 	    special_tokens[token] = _offset;
 	    ++_offset;
 	}
 	   
 	for (auto token : vocab_list) {
-	  vocab[token] = _offset;
-	  ++_offset;
+	    (*v)[token] = _offset;
+	    ++_offset;
 	}
+	vocab = v;
 	
     }
 
     WordVocab(const Counter_T& word_counts,
-	      int pad = 0,
-	      int start = 1,
-	      int end = 2,
-	      int unk = 3,
+	      Index_T pad = 0,
+	      Index_T start = 1,
+	      Index_T end = 2,
+	      Index_T unk = 3,
 	      std::string pad_str = "<PAD>",
 	      std::string start_str = "<GO>",
 	      std::string end_str = "<EOS>",
@@ -197,7 +228,8 @@ public:
 	special_tokens[_start_str] = _start_id;
 	special_tokens[_end_str] = _end_id;
 	special_tokens[_unk_str] = _unk_id;
-	_offset = std::max({pad, start, end, unk}) + 1;
+	_offset = std::max<uint32_t>({pad, start, end, unk}) + 1;
+	auto v = new UnorderedMapStrInt();
 	for (auto token : extra_tokens) {
 	    special_tokens[token] = _offset;
 	    ++_offset;
@@ -205,35 +237,45 @@ public:
 	   
 	for (auto kv : word_counts) {
 	    if (kv.second > min_freq) {
-		vocab[kv.first] = _offset;
+		(*v)[kv.first] = _offset;
 		++_offset;
 	    }
 	}
+	vocab = v;
 	
     }
 
-    virtual ~WordVocab() {}
-    virtual int pad_id() const { return _pad_id; }
-    virtual int start_id() const { return _start_id; }
-    virtual int end_id() const { return _end_id; }
-    virtual int unk_id() const { return _unk_id; }
+    virtual ~WordVocab() {
+	delete vocab;
+    }
+    virtual void compile_vocab(const std::string& target_dir) const
+    {
+	compile_str_int( (UnorderedMapStrInt&)(*vocab), join_path(target_dir, "ph-vocab"));
+    }
+
+    virtual Index_T pad_id() const { return _pad_id; }
+    virtual Index_T start_id() const { return _start_id; }
+    virtual Index_T end_id() const { return _end_id; }
+    virtual Index_T unk_id() const { return _unk_id; }
     virtual std::string pad_str() const { return _pad_str; }
     virtual std::string start_str() const { return _start_str; }
     virtual std::string end_str() const { return _end_str; }
     virtual std::string unk_str() const { return _unk_str; }
     
-    virtual int lookup(const std::string& s, const Transform_T& transform) const {
+    virtual Index_T lookup(const std::string& s, const Transform_T& transform) const {
 	auto p = special_tokens.find(s);
 	if (p != special_tokens.end()) {
 	    return p->second;
 	}
 	auto t = transform(s);
-	p = vocab.find(t);
-	if (p == vocab.end()) {
+	bool found;
+	Index_T x;
+	std::tie(found, x) = vocab->find(t);
+	if (!found) {
 	    return _unk_id;
 	}
 
-	return p->second;	
+	return x;
     }
 
 
@@ -251,31 +293,33 @@ public:
 	}
 	return output;
     }
+
+    
 };
 
 class BPEVocab : public Vocab
 {
 protected:
-    Codes_T _codes;
-    RevCodes_T _reversed_codes;
-    int _pad_id;
-    int _start_id;
-    int _end_id;
-    int _unk_id;
-    int _offset;
+    Codes_T* _codes;
+    RevCodes_T* _reversed_codes;
+    Index_T _pad_id;
+    Index_T _start_id;
+    Index_T _end_id;
+    Index_T _unk_id;
+    Index_T _offset;
     std::string _pad_str;
     std::string _start_str;
     std::string _end_str;
     std::string _unk_str;
 public:
-    Vocab_T vocab;
-    Vocab_T special_tokens;
+    MapStrInt* vocab;
+    SpecialVocab_T special_tokens;
     BPEVocab(std::string vocab_file,
 	     std::string codes_file,
-	     int pad = 0,
-	     int start = 1,
-	     int end = 2,
-	     int unk = 3,
+	     Index_T pad = 0,
+	     Index_T start = 1,
+	     Index_T end = 2,
+	     Index_T unk = 3,
 	     std::string pad_str = "<PAD>",
 	     std::string start_str = "<GO>",
 	     std::string end_str = "<EOS>",
@@ -293,47 +337,67 @@ public:
 	special_tokens[_start_str] = _start_id;
 	special_tokens[_end_str] = _end_id;
 	special_tokens[_unk_str] = _unk_id;
-	_offset = std::max({pad, start, end, unk}) + 1;
+	_offset = std::max<uint32_t>({pad, start, end, unk}) + 1;
 	for (auto token : extra_tokens) {
 	    special_tokens[token] = _offset;
 	    ++_offset;
 	}
 	   
-	read_vocab_file(vocab_file, vocab, _offset);
+	vocab = read_vocab_file(vocab_file, _offset);
 	read_codes_file(codes_file, _codes, _reversed_codes);
-	    
     }
-    virtual ~BPEVocab() {}
-    virtual int pad_id() const { return _pad_id; }
-    virtual int start_id() const { return _start_id; }
-    virtual int end_id() const { return _end_id; }
-    virtual int unk_id() const { return _unk_id; }
+    virtual ~BPEVocab() {
+	delete vocab;
+	delete _codes;
+	delete _reversed_codes;
+    }
+    virtual Index_T pad_id() const { return _pad_id; }
+    virtual Index_T start_id() const { return _start_id; }
+    virtual Index_T end_id() const { return _end_id; }
+    virtual Index_T unk_id() const { return _unk_id; }
     virtual std::string pad_str() const { return _pad_str; }
     virtual std::string start_str() const { return _start_str; }
     virtual std::string end_str() const { return _end_str; }
     virtual std::string unk_str() const { return _unk_str; }
     
-    
-    virtual int lookup(const std::string& s, const Transform_T& transform) const {
+    virtual void compile_vocab(const std::string& target_dir) const
+    {
+	if (!file_exists(target_dir)) {
+	    make_dir(target_dir);
+	}
+	auto vocab_file = join_path(target_dir, "ph-vocab");
+	compile_str_int((UnorderedMapStrInt&)(*vocab),
+			vocab_file);
+	auto codes_file = join_path(target_dir, "ph-codes");
+	
+	compile_str_int((const UnorderedMapStrInt&)(*_codes),
+			codes_file);
+	auto rcodes_file = join_path(target_dir, "ph-rcodes");
+	compile_str_str((const UnorderedMapStrStr&)(*_reversed_codes),
+			rcodes_file);
+    }
+    virtual Index_T lookup(const std::string& s, const Transform_T& transform) const {
 	auto p = special_tokens.find(s);
 	if (p != special_tokens.end()) {
 	    return p->second;
 	}
 	auto t = transform(s);
-	p = vocab.find(t);
-	if (p == vocab.end()) {
+	bool found;
+	Index_T x;
+	std::tie(found, x) = vocab->find(t);
+	if (!found) {
 	    return _unk_id;
 	}
 
-	return p->second;	
+	return x;	
     }
 
     // FIXME: pass return by ref
     virtual TokenList_T apply(const TokenList_T& tokens, const Transform_T& transform) const {
 	return _apply_bpe_single(tokens,
-				 _codes,
-				 _reversed_codes,
-				 vocab,
+				 *_codes,
+				 *_reversed_codes,
+				 *vocab,
 				 special_tokens,
 				 transform);
 	
@@ -387,7 +451,7 @@ public:
         for (auto i = 0; i < sz; ++i) {
 	    ids[i] = piece_to_id(pieces[i]);
 	}
-	return {ids, sz};
+	return std::make_tuple(ids, sz);
 	
     }
     virtual std::tuple<VecList_T, VecList_T> convert_to_ids_stack(const ListTokenList_T& list_tokens, long unsigned int len) const {
@@ -403,7 +467,7 @@ public:
 		ids[i * len + j] = piece_to_id(pieces[j]);
 	    }
 	}
-	return {ids, lengths};
+	return std::make_tuple(ids, lengths);
     }
 };
 
@@ -478,7 +542,7 @@ public:
         for (auto i = 0; i < sz; ++i) {
 	    ids[i] = piece_to_id(pieces[i]);
 	}
-	return {ids, sz};
+	return std::make_tuple(ids, sz);
 	
     }
 };

@@ -4,73 +4,207 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <unordered_map>
 #include <algorithm>
 #include <functional>
 #include "vecxx/utils.h"
-
+#include "vecxx/iox.h"
+#include "vecxx/phf.h"
 const char *BPE_END_WORD = "</w>";
 const size_t BPE_END_WORD_LENGTH = 4;
 const char *BPE_DELIM = "@@";
 const size_t BPE_DELIM_LENGTH = 2;
-
-
-
-struct pair_hash {
-    template <class T1, class T2> size_t operator()(const std::pair<T1, T2> &p) const {
-	auto h1 = std::hash<T1>{}(p.first);
-	auto h2 = std::hash<T2>{}(p.second);
-	auto seed = h1;
-	// boost::hash_combine
-	return h2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-};
+const char *PACK_DELIM = "  ";
 
 typedef std::pair<std::string, std::string> TPS_T;
-typedef std::unordered_map<TPS_T, uint32_t, pair_hash> Codes_T;
-typedef std::unordered_map<std::string, TPS_T> RevCodes_T;
+typedef MapStrInt Codes_T;
+typedef MapStrStr RevCodes_T;
 
+// TODO: return tuple of data, fd
+std::tuple<uint32_t*, Handle_T> _read_uint32s(std::string fname, int sz) {
+    void* data = NULL;
+    Handle_T fd = 0;
+    std::tie(data, fd) = mmap_read(fname, sz*4);
+    uint32_t* d = reinterpret_cast<uint32_t*>(data);
+    return std::make_tuple(d, fd);;
+}
+std::tuple<char*, uint32_t, Handle_T> _read_chars(std::string fname) {
+    uint32_t n = (uint32_t)file_size(fname);
+    void* data = NULL;
+    Handle_T fd = 0;
+    std::tie(data, fd) = mmap_read(fname, n);
+    char* d = reinterpret_cast<char*>(data);
+    return std::make_tuple(d, n, fd);
+}
+
+class PerfectHashMapStrStr : public MapStrStr
+{
+    phf _phf;
+    uint32_t* _k;
+    Handle_T _k_fd;
+    uint32_t* _offsets;
+    Handle_T _offsets_fd;
+    char* _data;
+    uint32_t _data_len;
+    Handle_T _data_fd;
+    uint32_t _hash_key(const std::string& k) const {
+	return phf_round32(k, 1337);
+    }
+public:
+    PerfectHashMapStrStr(const std::string& dir)
+	: _k(NULL), _offsets(NULL), _data(NULL), _data_len(0) {
+	load_phf(_phf, dir);
+	std::tie(_offsets, _offsets_fd) = _read_uint32s(file_in_dir(dir, "offsets.dat"), _phf.m);
+	std::tie(_k, _k_fd) = _read_uint32s(file_in_dir(dir, "hkey.dat"), _phf.m);
+	std::tie(_data, _data_len, _data_fd) = _read_chars(file_in_dir(dir, "flat.dat"));
+    }
+    ~PerfectHashMapStrStr() {
+	if (_k != NULL) {
+	    munmap(_k, _phf.m*4);
+	    close_file(_k_fd);
+	}
+	if (_offsets != NULL) {
+	    munmap(_offsets, _phf.m*4);
+	    close_file(_offsets_fd);
+	}
+	if (_data != NULL) {
+	    munmap(_data, _data_len);
+	    close_file(_data_fd);
+	}
+	PHF::destroy(&_phf);
+    }
+    
+    bool exists(const std::string& key) const {
+	phf_hash_t idx = PHF::hash(&_phf, key);
+	auto offset = _offsets[idx];
+	if (offset > _data_len) {
+	    return false;
+	}
+	if (_k[idx] == _hash_key(key)) {
+	    return true;
+	}
+	return false;
+    }
+
+    std::tuple<bool, std::string> find(const std::string& key) const
+    {
+	phf_hash_t idx = PHF::hash(&_phf, key);
+	auto offset = _offsets[idx];
+	if (offset > _data_len) {
+	    return std::make_tuple(false, "");
+	}
+	// This is a second independent check against false-positives
+	// it definitely slows down the code though
+	if (_k[idx] == _hash_key(key)) {
+	    return std::make_tuple(true, std::string(&_data[offset]));
+	}
+	return std::make_tuple(false, "");
+    }
+    size_t size() const { return _phf.m; }
+    size_t max_size() const { return _phf.m; }
+    
+};
+
+
+class PerfectHashMapStrInt : public MapStrInt
+{
+    phf _phf;
+    uint32_t* _k;
+    uint32_t* _v;
+    Handle_T _k_fd;
+    Handle_T _v_fd;
+    uint32_t _hash_key(const std::string& k) const {
+	return phf_round32(k, 1337);
+    }
+public:
+    PerfectHashMapStrInt(const std::string& dir) : _k(NULL), _v(NULL) {
+	load_phf(_phf, dir);
+	std::tie(_k, _k_fd) = _read_uint32s(file_in_dir(dir, "hkey.dat"), _phf.m);
+	std::tie(_v, _v_fd) = _read_uint32s(file_in_dir(dir, "v.dat"), _phf.m);
+	
+    }
+    ~PerfectHashMapStrInt() {
+	if (_k != NULL) {
+	    munmap(_k, _phf.m*4);
+	    close_file(_k_fd);
+	}	
+	if (_v != NULL) {
+	    munmap(_v, _phf.m*4);
+	    close_file(_v_fd);
+	}
+	PHF::destroy(&_phf);
+
+    }
+    bool exists(const std::string& key) const {
+	phf_hash_t idx = PHF::hash(&_phf, key);
+	return (_k[idx] == _hash_key(key));
+    }
+
+    std::tuple<bool, Index_T> find(const std::string& key) const {
+	phf_hash_t idx = PHF::hash(&_phf, key);
+        const uint32_t p = _v[idx];
+	if (_k[idx] == _hash_key(key)) {
+	    return std::make_tuple(true, (Index_T)p);
+	}
+	return std::make_tuple(false, (Index_T)0);
+    }
+    size_t size() const { return _phf.m; }
+    size_t max_size() const { return _phf.m; }
+    
+};
+
+
+TPS_T unpack_pair(const std::string& s) {
+    auto pos = s.find(PACK_DELIM);
+    return std::make_pair<std::string, std::string>(s.substr(0, pos), s.substr(pos + 2));
+}
+std::string pack_pair(const std::string& s1, const std::string& s2) {
+    return s1 + std::string(PACK_DELIM) + s2;
+}
+std::string pack_pair(const TPS_T& pair) {
+    return pack_pair(pair.first, pair.second);
+}
 
 void _decompose_bpe(const std::string s,
 		    TokenList_T &new_subwords,
 		    const RevCodes_T &reversed_codes,
-		    const Vocab_T &vocab,
+		    const MapStrInt &vocab,
 		    bool is_final) {
-    auto it = reversed_codes.find(s);
-    if (it == reversed_codes.end()) {
-	// TODO this whole block below is just some sanity check
-	// if we cannot un-merge a subword, it has to be a char
-	std::string s2 = is_final ? s.substr(0, s.size() - BPE_END_WORD_LENGTH) : s;
-	int count = 0;
-	for (size_t j = 0; j < s2.size(); j++) {
-	    if ((s2[j] & 0xc0) != 0x80) {
-		count++;
-	    }
-	}
+
+
+    bool present;
+    std::string pair_value;
+    std::tie(present, pair_value) = reversed_codes.find(s);
+    if (!present) {
 	new_subwords.push_back(s);
 	return;
     }
-    std::string token1 = it->second.first;
-    if (vocab.find(token1 + BPE_DELIM) == vocab.end()) {
-	_decompose_bpe(token1, new_subwords, reversed_codes, vocab, false);
-    } else {
+    TPS_T pair = unpack_pair(pair_value);
+    std::string token1 = pair.first;
+    bool found = vocab.exists(token1 + BPE_DELIM);
+    if (!found) {
+	_decompose_bpe(token1,
+		       new_subwords, reversed_codes, vocab, false);
+    }
+    else {
 	new_subwords.push_back(token1);
     }
-    std::string token2 = it->second.second;
+    std::string token2 = pair.second;
     auto query = token2 + BPE_DELIM;
     if (is_final) {
 	query = token2.substr(0, token2.size() - BPE_END_WORD_LENGTH);
     }
-    if (vocab.find(query) == vocab.end()) {
+    found = vocab.exists(query);
+    if (!found) {
 	_decompose_bpe(token2, new_subwords, reversed_codes, vocab, is_final);
-    } else {
+    }
+    else {
 	new_subwords.push_back(token2);
     }
 }
 
 void _limit_vocab_bpe(const TokenList_T &subwords, TokenList_T &new_subwords,
 		      const RevCodes_T &reversed_codes,
-		      const Vocab_T &vocab) {
+		      const MapStrInt &vocab) {
     std::string query;
     int sz = (int)subwords.size();
     for (int i = 0; i < sz; i++) {
@@ -81,7 +215,8 @@ void _limit_vocab_bpe(const TokenList_T &subwords, TokenList_T &new_subwords,
 	} else {
 	    query = subword + BPE_DELIM;
 	}
-	if (vocab.find(query) == vocab.end()) {
+	bool found = vocab.exists(query);
+	if (!found) {
 	    _decompose_bpe(subword, new_subwords, reversed_codes, vocab, is_final);
 	} else {
 	    new_subwords.push_back(subword);
@@ -93,33 +228,42 @@ void _limit_vocab_bpe(const TokenList_T &subwords, TokenList_T &new_subwords,
 std::string process_bpe(TokenList_T &subwords,
 			const Codes_T &codes,
 			const RevCodes_T &reversed_codes,
-			const Vocab_T &vocab) {
+			const MapStrInt &vocab) {
     // merge subWords as much as possible
     TokenList_T new_subwords;
     while (subwords.size() > 1) {
 	// find the best pair
-	int best_pair_id = -1;
-	auto best_pair = codes.end(); // TODO ugly hack that works
+	uint32_t best_pair_id = 0;
+	uint32_t best_pair_rank = 0;
+	std::string best_key = "";
+	bool have_pair = false;
+	//auto best_pair = codes.end(); // TODO ugly hack that works
+	
 	for (int i = 0; i < (int)(subwords.size() - 1); i++) {
-	    auto pair = std::make_pair(subwords[i], subwords[i + 1]);
-	    auto it = codes.find(pair);
-	    int pair_rank = it == codes.end() ? -1 : it->second;
-	    if (pair_rank >= 0 && (best_pair_id == -1 || int(best_pair->second) > pair_rank)) {
-		best_pair = it;
+	    auto pair = pack_pair(subwords[i], subwords[i + 1]);
+	    uint32_t pair_rank;
+	    bool found;
+
+	    std::tie(found, pair_rank) = codes.find(pair);
+	    if (found &&  (!have_pair || best_pair_rank > pair_rank)) {
 		best_pair_id = i;
+		best_key = pair;
+		best_pair_rank = pair_rank;
+		have_pair = true;
 	    }
 	}
 	// if we cannot merge anything, stop
-	if (best_pair_id == -1) {
+	if (!have_pair) {
 	    break;
 	}
 	// otherwise, merge subWords
 	bool just_merged = false;
 	new_subwords = TokenList_T();
+	TPS_T best_pair_key = unpack_pair(best_key);
 	for (size_t i = 0; i < subwords.size(); i++) {
 	    if ((i + 1 < subwords.size()) && (!just_merged) &&
-		subwords[i] == best_pair->first.first &&
-		subwords[i + 1] == best_pair->first.second) {
+		subwords[i] == best_pair_key.first &&
+		subwords[i + 1] == best_pair_key.second) {
 		new_subwords.push_back(subwords[i] + subwords[i + 1]);
 		just_merged = true;
 	    }
@@ -154,8 +298,8 @@ std::string process_bpe(TokenList_T &subwords,
 TokenList_T _apply_bpe_single(const TokenList_T& s,
 			      const Codes_T& codes,
 			      const RevCodes_T& reversed_codes,
-			      const Vocab_T& vocab,
-			      const Vocab_T& special_tokens,
+			      const MapStrInt& vocab,
+			      const SpecialVocab_T& special_tokens,
 			      const Transform_T& transform) {
     std::string cur;
     TokenList_T words = s;
@@ -190,19 +334,32 @@ TokenList_T _apply_bpe_single(const TokenList_T& s,
     return split(cur);
 }
 
+void read_codes_mmap(const std::string& dir, Codes_T*& codes, RevCodes_T*& rev_codes) {
+    auto c = new PerfectHashMapStrInt(file_in_dir(dir, "ph-codes"));
+    auto rc = new PerfectHashMapStrStr(file_in_dir(dir, "ph-rcodes"));
+    codes = c;
+    rev_codes = rc;
 
-void read_codes_file(const std::string& infile,
-		     Codes_T& codes,
-		     RevCodes_T &reversed_codes) {
+}
+void read_codes_file(const std::string& infile, Codes_T*& codes, RevCodes_T*& rev_codes)
+{
+    if (is_dir(infile)) {
+	read_codes_mmap(infile, codes, rev_codes);
+	return;
+    }
+    auto c = new UnorderedMapStrInt();
+    auto rc = new UnorderedMapStrStr();
     std::ifstream f(infile.c_str());
     std::string line;
     while (getline(f, line)) {
 	auto splits = split(line);
-	auto pair = std::make_pair(splits[0], splits[1]);
+	auto pair = pack_pair(splits[0], splits[1]);
 	std::string concat = splits[0] + splits[1];
-	codes[pair] = codes.size();
-	reversed_codes[concat] = pair;
+	(*c)[pair] = (uint32_t)c->size();
+	(*rc)[concat] = pair;
     }
+    codes = c;
+    rev_codes = rc;
 }
 
 #endif
