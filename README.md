@@ -81,24 +81,8 @@ The result of this will be:
 ```python
 >>> import vecxx
 >>> b = vecxx.BPEVocab('/data/reddit/vocab.30k', '/data/reddit/codes.30k', extra_tokens=["[CLS]", "[MASK]"])
->>> b.compile('blah')
-Traceback (most recent call last):
-  File "<stdin>", line 1, in <module>
-AttributeError: 'vecxx.BPEVocab' object has no attribute 'compile'
 >>> b.compile_vocab('blah')
-Creating blah
-Creating compiled vocab 
-creating blah/ph-vocab
-Creating compiled codes blah/ph-codes
-creating blah/ph-codes
-creating blah/ph-rcodes
-
 >>> b2 = vecxx.BPEVocab('blah', 'blah')
-file blah is a directory.  Assuming mmap
-Reallocating
-file blah is a directory.  Assuming mmap
-Reallocating
-Reallocating
 ```
 
 ## JS/TS bindings
