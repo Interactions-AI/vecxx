@@ -177,7 +177,7 @@ std::tuple<void*, Handle_T> mmap_read(std::string file, uint32_t file_size, bool
 		   fd,
 		   0);
 #endif
-    return {p, fd};
+    return std::make_tuple(p, fd);
     
 }
 void close_file(Handle_T fd) {
