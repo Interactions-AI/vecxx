@@ -353,20 +353,21 @@ void compile_str_str(const UnorderedMapStrStr& c, std::string dir, size_t alpha=
 
 
     uint32_t* h = new uint32_t[m];
-    uint32_t* offsets = new uint32_t[m];
+    uint32_t* offsets = new uint32_t[m*2];
     std::vector<char> flat;
     memset(h, 0, m*4);
-    memset(offsets, 0, m*4);
+    memset(offsets, 0, m*4*2);
     assert(flat.size() <= UINT32_MAX);
     for (auto p = c.begin(); p != c.end(); ++p) {
 	phf_hash_t idx = PHF::hash(&phf, p->first);
 	h[idx] = _hash_key(p->first);
 	// 4GB limit on values
-	offsets[idx] = (uint32_t)flat.size();
+	auto offset_start = idx*2;
+	offsets[offset_start] = (uint32_t)flat.size();
 	for (char ch : p->second) {
 	    flat.push_back(ch);
 	}
-	flat.push_back(0);
+	offsets[offset_start+1] = (uint32_t)flat.size();
     }
     PHF::init<std::string, 0>(&phf, k, n, lambda, alpha, seed);
     //PHF::compact(&phf);
@@ -374,7 +375,7 @@ void compile_str_str(const UnorderedMapStrStr& c, std::string dir, size_t alpha=
     PHF::destroy(&phf);
     std::ofstream obin(file_in_dir(dir, "offsets.dat"),
 		       std::ios::out | std::ios::binary);
-    obin.write((const char*)offsets, m*4);
+    obin.write((const char*)offsets, m*4*2);
     obin.close();
     std::ofstream hbin(file_in_dir(dir, "hkey.dat"),
 		       std::ios::out | std::ios::binary);
@@ -392,5 +393,142 @@ void compile_str_str(const UnorderedMapStrStr& c, std::string dir, size_t alpha=
     delete [] offsets;
 
 }
+
+
+// TODO: return tuple of data, fd
+std::tuple<uint32_t*, Handle_T> _read_uint32s(std::string fname, int sz) {
+    void* data = NULL;
+    Handle_T fd = 0;
+    std::tie(data, fd) = mmap_read(fname, sz*4);
+    uint32_t* d = reinterpret_cast<uint32_t*>(data);
+    return std::make_tuple(d, fd);;
+}
+std::tuple<char*, uint32_t, Handle_T> _read_chars(std::string fname) {
+    uint32_t n = (uint32_t)file_size(fname);
+    void* data = NULL;
+    Handle_T fd = 0;
+    std::tie(data, fd) = mmap_read(fname, n);
+    char* d = reinterpret_cast<char*>(data);
+    return std::make_tuple(d, n, fd);
+}
+
+class PerfectHashMapStrStr : public MapStrStr
+{
+    phf _phf;
+    uint32_t* _k;
+    Handle_T _k_fd;
+    uint32_t* _offsets;
+    Handle_T _offsets_fd;
+    char* _data;
+    uint32_t _data_len;
+    Handle_T _data_fd;
+    uint32_t _hash_key(const std::string& k) const {
+	return phf_round32(k, 1337);
+    }
+public:
+    PerfectHashMapStrStr(const std::string& dir)
+	: _k(NULL), _offsets(NULL), _data(NULL), _data_len(0) {
+	load_phf(_phf, dir);
+	std::tie(_offsets, _offsets_fd) = _read_uint32s(file_in_dir(dir, "offsets.dat"), _phf.m*2);
+	std::tie(_k, _k_fd) = _read_uint32s(file_in_dir(dir, "hkey.dat"), _phf.m);
+	std::tie(_data, _data_len, _data_fd) = _read_chars(file_in_dir(dir, "flat.dat"));
+    }
+    ~PerfectHashMapStrStr() {
+	if (_k != NULL) {
+	    munmap(_k, _phf.m*4);
+	    close_file(_k_fd);
+	}
+	if (_offsets != NULL) {
+	    munmap(_offsets, _phf.m*4*2);
+	    close_file(_offsets_fd);
+	}
+	if (_data != NULL) {
+	    munmap(_data, _data_len);
+	    close_file(_data_fd);
+	}
+	PHF::destroy(&_phf);
+    }
+    
+    bool exists(const std::string& key) const {
+	phf_hash_t idx = PHF::hash(&_phf, key);
+	auto offset_end = _offsets[idx*2+1];
+	if (offset_end > _data_len) {
+	    return false;
+	}
+	if (_k[idx] == _hash_key(key)) {
+	    return true;
+	}
+	return false;
+    }
+
+    std::tuple<bool, std::string> find(const std::string& key) const
+    {
+	phf_hash_t idx = PHF::hash(&_phf, key);
+	auto offset_start = _offsets[idx*2];
+	auto offset_end = _offsets[idx*2+1];
+	if (offset_end > _data_len) {
+	    return std::make_tuple(false, "");
+	}
+	// This is a second independent check against false-positives
+	// it definitely slows down the code though
+	if (_k[idx] == _hash_key(key)) {
+	  return std::make_tuple(true, std::string(&_data[offset_start],
+						   &_data[offset_end]));
+	}
+	return std::make_tuple(false, "");
+    }
+    size_t size() const { return _phf.m; }
+    size_t max_size() const { return _phf.m; }
+    
+};
+
+
+class PerfectHashMapStrInt : public MapStrInt
+{
+    phf _phf;
+    uint32_t* _k;
+    uint32_t* _v;
+    Handle_T _k_fd;
+    Handle_T _v_fd;
+    uint32_t _hash_key(const std::string& k) const {
+	return phf_round32(k, 1337);
+    }
+public:
+    PerfectHashMapStrInt(const std::string& dir) : _k(NULL), _v(NULL) {
+	load_phf(_phf, dir);
+	std::tie(_k, _k_fd) = _read_uint32s(file_in_dir(dir, "hkey.dat"), _phf.m);
+	std::tie(_v, _v_fd) = _read_uint32s(file_in_dir(dir, "v.dat"), _phf.m);
+	
+    }
+    ~PerfectHashMapStrInt() {
+	if (_k != NULL) {
+	    munmap(_k, _phf.m*4);
+	    close_file(_k_fd);
+	}	
+	if (_v != NULL) {
+	    munmap(_v, _phf.m*4);
+	    close_file(_v_fd);
+	}
+	PHF::destroy(&_phf);
+
+    }
+    bool exists(const std::string& key) const {
+	phf_hash_t idx = PHF::hash(&_phf, key);
+	return (_k[idx] == _hash_key(key));
+    }
+
+    std::tuple<bool, Index_T> find(const std::string& key) const {
+	phf_hash_t idx = PHF::hash(&_phf, key);
+        const uint32_t p = _v[idx];
+	if (_k[idx] == _hash_key(key)) {
+	    return std::make_tuple(true, (Index_T)p);
+	}
+	return std::make_tuple(false, (Index_T)0);
+    }
+    size_t size() const { return _phf.m; }
+    size_t max_size() const { return _phf.m; }
+    
+};
+
 
 #endif
