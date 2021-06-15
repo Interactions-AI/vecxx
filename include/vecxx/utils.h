@@ -12,6 +12,16 @@
 
 typedef uint32_t Index_T;
 
+typedef std::vector<std::string> TokenList_T;
+typedef std::vector<std::vector<std::string> > ListTokenList_T;
+typedef std::unordered_map<std::string, std::string> TokenMap_T;
+typedef std::vector<TokenMap_T > TokenMapList_T;
+typedef std::map<std::string, int> Counter_T;
+typedef std::unordered_map<std::string, uint32_t> SpecialVocab_T;
+typedef std::vector<int> VecList_T;
+typedef std::function<std::string(std::string)> Transform_T;
+
+
 class MapStrStr
 {
 public:
@@ -103,14 +113,6 @@ public:
     
 };
 
-typedef std::vector<std::string> TokenList_T;
-typedef std::vector<std::vector<std::string> > ListTokenList_T;
-typedef std::unordered_map<std::string, std::string> TokenMap_T;
-typedef std::vector<TokenMap_T > TokenMapList_T;
-typedef std::map<std::string, int> Counter_T;
-typedef std::unordered_map<std::string, uint32_t> SpecialVocab_T;
-typedef std::vector<int> VecList_T;
-typedef std::function<std::string(std::string)> Transform_T;
 
 TokenList_T split(const std::string& s,
 		  std::string splitter=" ")
