@@ -9,6 +9,21 @@ This includes a straighforward C++ implementation of common approaches to vector
 
 To support fast load times, `vecxx` vocabs can be compiled to a perfect hash and persisted to disk.  When constructing the objects from the compiled directory, the loading will use memory mapping.  For a BPE vocab, a non-compiled load that takes 24 milliseconds, may take only 200 microseconds after compilation.
 
+### Handling of prefix and suffix tokens
+
+The API supports passing in a vector of tokens for prefixing the data, and for suffixing.  These are
+passed as a `[]` in Python, and `std::vector<std::string>` in C++.  Note that for prefixing, the prefix tokens will always be present, but when converting to integer ids, if the output buffer is presized and is too short to fill the tokens, the library currently will not overwrite the last values in the buffer to the end tokens.  The rationale is that, typically an end suffix will be something marking an end-of-sentence or utterance, but since the result is truncated, the end was not actually reached.  Future versions of the library may change this
+
+### Handling of multiple input sentences
+
+The library supports converting multiple sentences into a "stack" of tokens with a fixed output size.  This may be useful for batching or using N-best lists as input.  The results from the ID stack are contiguous 1D arrays.  They will typically be reshaped in user code:
+
+```python
+nbests = [t.split() for t in text]
+ids, lengths = vec.convert_to_ids_stack(nbests, len(nbests)*args.mxlen)
+ids = np.array(ids).reshape(1, len(nbests), -1)
+example = {args.feature: ids, 'lengths': np.array(lengths).reshape(1, -1)}
+```
 ## C++
 
 ```c++
