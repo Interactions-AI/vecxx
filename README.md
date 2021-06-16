@@ -57,6 +57,11 @@ int main(int argc, char** argv) {
 
 ### Vocab compilation
 
+The initial load of the vocab is typically relatively fast, as it just reads in text files.
+However, if we need much lower latency, we can optionally compile the internal data structures to memory-mapped perfect hashes.
+
+Once compiled pass the compiled target folder in as both the `vocab_file` and `codes_file`.
+
 ```c++
   auto v = new BPEVocab(vocab_file, codes_file);
   v->compile_vocab(compiled_dir);
@@ -91,6 +96,9 @@ The result of this will be:
 ```
 
 ### Vocab compilation
+
+
+As in the C++ example, we can optionally compile the internal data structures to memory-mapped perfect hashes.  Once compiled they can be read in the same way.
 
 ```python
 >>> import vecxx
