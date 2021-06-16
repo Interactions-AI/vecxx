@@ -63,39 +63,66 @@ Napi::Array fromIdsList(const VecList_T &vec, const Napi::Env &env) {
 }
 
 
-class BPEVocabWrapper : public Napi::ObjectWrap<BPEVocabWrapper> {
+class VocabWrapper : public Napi::ObjectWrap<VocabWrapper> {
 public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
-    BPEVocabWrapper(const Napi::CallbackInfo &info);
-    ~BPEVocabWrapper();
+    VocabWrapper(const Napi::CallbackInfo &info);
+    ~VocabWrapper();
     Vocab *getValue() { return this->value; }
 private:
     Vocab *value = NULL;
     Napi::Value lookup(const Napi::CallbackInfo &info);
 };
 
-Napi::Object BPEVocabWrapper::Init(Napi::Env env, Napi::Object exports) {
-    exports.Set("BPEVocab", DefineClass(env, "BPEVocab", {
-            InstanceMethod<&BPEVocabWrapper::lookup>("lookup"),
+Napi::Object VocabWrapper::Init(Napi::Env env, Napi::Object exports) {
+    exports.Set("Vocab", DefineClass(env, "Vocab", {
+            InstanceMethod<&VocabWrapper::lookup>("lookup"),
     }));
     return exports;
 }
 
-BPEVocabWrapper::BPEVocabWrapper(const Napi::CallbackInfo &info) : Napi::ObjectWrap<BPEVocabWrapper>(info) {
+VocabWrapper::VocabWrapper(const Napi::CallbackInfo &info) : Napi::ObjectWrap<VocabWrapper>(info) {
     if (info.Length() < 2) {
         Napi::TypeError::New(info.Env(), "You must supply at least 2 arguments").ThrowAsJavaScriptException();
         return;
     }
-    this->value = new BPEVocab((std::string) info[0].ToString(), (std::string) info[1].ToString());
+    std::string vocabType = (std::string) info[0].ToString();
+    if (vocabType == "word-file") {
+        this->value = new WordVocab((std::string) info[1].ToString());
+    } else if (vocabType == "word-tokens") {
+        Napi::Reference<Napi::Array> tokenArray = Napi::Weak(info[1].As<Napi::Array>());
+        TokenList_T tokens = toTokenList(tokenArray.Value());
+        this->value = new WordVocab(tokens);
+    } else if (vocabType == "word-counter") {
+        Napi::Object counterRecord = info[1].As<Napi::Object>();
+        Napi::Array fields = counterRecord.GetPropertyNames();
+
+        auto numFields = fields.Length();
+        Counter_T counter;
+        for (auto i = 0; i < numFields; ++i) {
+            std::string field = static_cast<Napi::Value>(fields[i]).ToString();
+            counter[field] = (int)counterRecord.Get(field).ToNumber();
+        }
+        this->value = new WordVocab(counter);
+    }
+    else if (vocabType == "bpe") {
+        if (info.Length() < 3) {
+            Napi::TypeError::New(info.Env(), "You must supply 2 filenames to create BPEVocab").ThrowAsJavaScriptException();
+            return;
+        }
+        this->value = new BPEVocab((std::string) info[1].ToString(), (std::string) info[2].ToString());
+    } else {
+        Napi::TypeError::New(info.Env(), "Invalid vocab type specified").ThrowAsJavaScriptException();
+    }
 }
 
-BPEVocabWrapper::~BPEVocabWrapper() {
+VocabWrapper::~VocabWrapper() {
     if (this->value) {
         delete this->value;
     }
 }
 
-Napi::Value BPEVocabWrapper::lookup(const Napi::CallbackInfo &info) {
+Napi::Value VocabWrapper::lookup(const Napi::CallbackInfo &info) {
     Napi::Env env = info.Env();
     auto numArgs = info.Length();
     if (numArgs != 2) {
@@ -117,7 +144,7 @@ public:
     Napi::Value convertToPieces(const Napi::CallbackInfo &info);
     Napi::Value convertToIds(const Napi::CallbackInfo &info);
 private:
-    BPEVocabWrapper* bpe;
+    VocabWrapper* vocab;
     Napi::FunctionReference transform;
     Napi::Reference<Napi::Array> emitBeginToken;
     Napi::Reference<Napi::Array> emitEndToken;
@@ -136,7 +163,7 @@ VocabVectorizerWrapper::VocabVectorizerWrapper(const Napi::CallbackInfo &info) :
         Napi::TypeError::New(info.Env(), "You must supply 4 arguments").ThrowAsJavaScriptException();
         return;
     }
-    bpe = Napi::ObjectWrap<BPEVocabWrapper>::Unwrap(info[0].ToObject());
+    vocab = Napi::ObjectWrap<VocabWrapper>::Unwrap(info[0].ToObject());
     transform = Napi::Persistent(info[1].As<Napi::Function>());
     emitBeginToken = Napi::Persistent(info[2].As<Napi::Array>());
     emitEndToken = Napi::Persistent(info[3].As<Napi::Array>());
@@ -154,7 +181,7 @@ Napi::Value VocabVectorizerWrapper::convertToPieces(const Napi::CallbackInfo &in
     Transform_T transformProxy = std::bind(&TransformWrapper::transform, transformer, std::placeholders::_1);
     TokenList_T beginTokens = toTokenList(this->emitBeginToken.Value());
     TokenList_T endTokens = toTokenList(this->emitEndToken.Value());
-    VocabVectorizer vec(this->bpe->getValue(), transformProxy, beginTokens, endTokens);
+    VocabVectorizer vec(this->vocab->getValue(), transformProxy, beginTokens, endTokens);
 
     TokenList_T tokens = toTokenList(info[0].As<Napi::Array>());
     TokenList_T pieces = vec.convert_to_pieces(tokens);
@@ -173,7 +200,7 @@ Napi::Value VocabVectorizerWrapper::convertToIds(const Napi::CallbackInfo &info)
     Transform_T transformProxy = std::bind(&TransformWrapper::transform, transformer, std::placeholders::_1);
     TokenList_T beginTokens = toTokenList(this->emitBeginToken.Value());
     TokenList_T endTokens = toTokenList(this->emitEndToken.Value());
-    VocabVectorizer vec(this->bpe->getValue(), transformProxy, beginTokens, endTokens);
+    VocabVectorizer vec(this->vocab->getValue(), transformProxy, beginTokens, endTokens);
 
     TokenList_T tokens = toTokenList(info[0].As<Napi::Array>());
     auto maxLength = info[1].As<Napi::Number>();
@@ -192,7 +219,7 @@ public:
     Napi::Value convertToPieces(const Napi::CallbackInfo &info);
     Napi::Value convertToIds(const Napi::CallbackInfo &info);
 private:
-    BPEVocabWrapper* bpe;
+    VocabWrapper* vocab;
     Napi::FunctionReference transform;
     Napi::Reference<Napi::Array> emitBeginToken;
     Napi::Reference<Napi::Array> emitEndToken;
@@ -214,7 +241,7 @@ VocabMapVectorizerWrapper::VocabMapVectorizerWrapper(const Napi::CallbackInfo &i
         Napi::TypeError::New(info.Env(), "You must supply 6 arguments").ThrowAsJavaScriptException();
         return;
     }
-    bpe = Napi::ObjectWrap<BPEVocabWrapper>::Unwrap(info[0].ToObject());
+    vocab = Napi::ObjectWrap<VocabWrapper>::Unwrap(info[0].ToObject());
     transform = Napi::Persistent(info[1].As<Napi::Function>());
     emitBeginToken = Napi::Persistent(info[2].As<Napi::Array>());
     emitEndToken = Napi::Persistent(info[3].As<Napi::Array>());
@@ -234,7 +261,7 @@ Napi::Value VocabMapVectorizerWrapper::convertToPieces(const Napi::CallbackInfo 
     Transform_T transformProxy = std::bind(&TransformWrapper::transform, transformer, std::placeholders::_1);
     TokenList_T beginTokens = toTokenList(this->emitBeginToken.Value());
     TokenList_T endTokens = toTokenList(this->emitEndToken.Value());
-    VocabMapVectorizer vec(this->bpe->getValue(), transformProxy, beginTokens, endTokens);
+    VocabMapVectorizer vec(this->vocab->getValue(), transformProxy, beginTokens, endTokens);
 
     TokenMapList_T tokenMap = toTokenMapList(info[0].As<Napi::Array>());
     TokenList_T pieces = vec.convert_to_pieces(tokenMap);
@@ -253,7 +280,7 @@ Napi::Value VocabMapVectorizerWrapper::convertToIds(const Napi::CallbackInfo &in
     Transform_T transformProxy = std::bind(&TransformWrapper::transform, transformer, std::placeholders::_1);
     TokenList_T beginTokens = toTokenList(this->emitBeginToken.Value());
     TokenList_T endTokens = toTokenList(this->emitEndToken.Value());
-    VocabMapVectorizer vec(this->bpe->getValue(), transformProxy, beginTokens, endTokens);
+    VocabMapVectorizer vec(this->vocab->getValue(), transformProxy, beginTokens, endTokens);
 
     TokenMapList_T tokenMaps = toTokenMapList(info[0].As<Napi::Array>());
     auto maxLength = info[1].As<Napi::Number>();
@@ -266,7 +293,7 @@ Napi::Value VocabMapVectorizerWrapper::convertToIds(const Napi::CallbackInfo &in
 }
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
-    BPEVocabWrapper::Init(env, exports);
+    VocabWrapper::Init(env, exports);
     VocabVectorizerWrapper::Init(env, exports);
     VocabMapVectorizerWrapper::Init(env, exports);
     return exports;
