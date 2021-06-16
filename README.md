@@ -53,6 +53,7 @@ int main(int argc, char** argv) {
     delete v;
     return 0;
 }
+```
 
 ### Vocab compilation
 
@@ -61,8 +62,6 @@ int main(int argc, char** argv) {
   v->compile_vocab(compiled_dir);
   delete v;
   return 0;
-```
-
 ```
 
 ## Python bindings
