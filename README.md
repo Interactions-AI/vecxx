@@ -139,8 +139,8 @@ docker run -it vecxx-node
 var vecxx = require('dist/index.js')
 ```
 
-[build-status-py-img]: https://github.com/dpressel/vecxx/workflows/python/badge.svg?branch=main&event=push
+[build-status-py-img]: https://github.com/dpressel/vecxx/actions/workflows/python.yml/badge.svg?branch=main&event=push
 [build-status-py-link]: https://github.com/dpressel/vecxx/actions?query=workflow%3A%22python%22
-[build-status-node-img]: https://github.com/dpressel/vecxx/workflows/node.js/badge.svg?branch=main&event=push
+[build-status-node-img]: https://github.com/dpressel/vecxx/actions/workflows/node.js.yml/badge.svg?branch=main&event=push
 [build-status-node-link]: https://github.com/dpressel/vecxx/actions?query=workflow%3A%22node.js%22
 
