@@ -2,29 +2,46 @@ import * as bindings from 'bindings';
 
 const vecxx = bindings('vecxx');
 const {
-    BPEVocab: VocabBinding,
+    Vocab: VocabBinding,
     VocabVectorizer: VocabVectorizerBinding,
     VocabMapVectorizer: VocabMapVectorizerBinding
 } = vecxx;
 
-export type TokenTransform = (s: string) => string;
-const identityTransform: TokenTransform = (s: string) => s;
+export type Token = string;
+export type Tokens = Token[];
+export type TokenIds = { ids: number[]; size: number };
+export type Counter = Record<string, number>;
 
-export class BPEVocab {
-    public readonly binding: any;
+export type TokenTransform = (s: Token) => Token;
+const identityTransform: TokenTransform = (s: Token) => s;
 
-    constructor(vocabFile: string, codesFile: string) {
-        this.binding = new VocabBinding(vocabFile, codesFile);
-    }
+export abstract class Vocab {
+    protected constructor(public readonly binding: any) {}
 
     public lookup(token: string, transform?: TokenTransform): number {
         return this.binding.lookup(token, transform ?? identityTransform);
     }
 }
 
-export type Token = string;
-export type Tokens = Token[];
-export type TokenIds = { ids: number[]; size: number };
+export class BPEVocab extends Vocab {
+    constructor(vocabFile: string, codesFile: string) {
+        super(new VocabBinding('bpe', vocabFile, codesFile));
+    }
+}
+
+export class WordVocab extends Vocab {
+    /**
+     * @param vocab can be a filename, an array of Tokens or a Counter record
+     */
+    constructor(vocab: string | Tokens | Counter) {
+        super(
+            new VocabBinding(
+                Array.isArray(vocab) ? 'word-tokens' : typeof vocab === 'string' ? 'word-file' : 'word-counter',
+                vocab
+            )
+        );
+    }
+}
 
 export interface Vectorizer {
     convertToPieces(tokens: Tokens): Tokens;
@@ -41,7 +58,7 @@ interface VocabVectorizerOptions {
 export class VocabVectorizer implements Vectorizer {
     private proxy: any;
 
-    constructor(private readonly vocab: BPEVocab, private readonly options?: VocabVectorizerOptions) {
+    constructor(private readonly vocab: Vocab, private readonly options?: VocabVectorizerOptions) {
         this.proxy = new VocabVectorizerBinding(
             vocab.binding,
             options?.transform ?? identityTransform,
