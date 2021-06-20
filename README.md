@@ -5,7 +5,9 @@
 
 Fast C++ implementations of vectorizers for machine learning models.  There are bindings available in Python and JS/TS.
 
-This includes a straighforward C++ implementation of common approaches to vectorization to integers, required for most types of DNNs to convert sentences into tensors.  It also supports native [subword BPE](https://github.com/rsennrich/subword-nmt) based on [fastBPE](https://github.com/glample/fastBPE) with additional support for preprocessing transforms of strings during decode, either as native functors or from the bound languages.  It also supports extra (special) tokens that can be passed through.
+This includes a straighforward, cross-platform C++ implementation of common approaches to vectorization to integers, required for most types of DNNs to convert sentences into tensors.  It also supports native [subword BPE](https://github.com/rsennrich/subword-nmt) based on [fastBPE](https://github.com/glample/fastBPE) with additional support for preprocessing transforms of strings during decode, either as native functors or from the bound languages.  It also supports extra (special) tokens that can be passed through.
+
+For BPE, the library supports execution of models that were trained either using subword-nmt or fastBPE (or any other system which shares the file format).
 
 To support fast load times, `vecxx` vocabs can be compiled to a perfect hash and persisted to disk.  When constructing the objects from the compiled directory, the loading will use memory mapping.  For a BPE vocab, a non-compiled load that takes 24 milliseconds, may take only 200 microseconds after compilation.
 
@@ -72,6 +74,12 @@ Once compiled pass the compiled target folder in as both the `vocab_file` and `c
 ## Python bindings
 
 The Python bindings are written with [pybind11](https://github.com/pybind/pybind11).
+
+You can install the python bindings using `pip`:
+
+```
+pip install vecxx
+```
 
 ### Using BPE vectorizer from Python
 
