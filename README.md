@@ -3,7 +3,7 @@
 [![Python Build Status][build-status-py-img]][build-status-py-link]
 [![Node.js Build Status][build-status-node-img]][build-status-node-link]
 
-Fast C++ implementations of vectorizers for machine learning models.  There are bindings available in Python and JS/TS.
+Fast C++ implementations of vectorizers for machine learning models, with bindings in Python and JS/TS.
 
 This includes a straighforward, cross-platform C++ implementation of common approaches to vectorization to integers, required for most types of DNNs to convert sentences into tensors.  It also supports native [subword BPE](https://github.com/rsennrich/subword-nmt) based on [fastBPE](https://github.com/glample/fastBPE) with additional support for preprocessing transforms of strings during decode, either as native functors or from the bound languages.  It also supports extra (special) tokens that can be passed through.
 
