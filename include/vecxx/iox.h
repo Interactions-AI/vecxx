@@ -16,6 +16,7 @@
 #include <inttypes.h> /* PRIu32 PRIx32 */
 #include <stdint.h>   /* UINT32_MAX uint32_t uint64_t */
 #include "vecxx/phf.h"
+#include "utils.h"
 
 #if defined(WIN32) || defined(_WIN32)
 #  include <windows.h>
@@ -498,13 +499,12 @@ public:
 	load_phf(_phf, dir);
 	std::tie(_k, _k_fd) = _read_uint32s(file_in_dir(dir, "hkey.dat"), _phf.m);
 	std::tie(_v, _v_fd) = _read_uint32s(file_in_dir(dir, "v.dat"), _phf.m);
-	
     }
     ~PerfectHashMapStrInt() {
 	if (_k != NULL) {
 	    munmap(_k, _phf.m*4);
 	    close_file(_k_fd);
-	}	
+	}
 	if (_v != NULL) {
 	    munmap(_v, _phf.m*4);
 	    close_file(_v_fd);
@@ -524,6 +524,14 @@ public:
 	    return std::make_tuple(true, (Index_T)p);
 	}
 	return std::make_tuple(false, (Index_T)0);
+    }
+    std::tuple<bool, std::string> rfind(const Index_T idx) {
+        if (idx >= this->size()) {
+            throw std::runtime_error("PerfectHashMapStrInt::rfind index " + std::to_string(idx) + " out of range");
+        }
+        // TODO
+        // return;
+        throw std::runtime_error("PerfectHashMapStrInt::rfind not implemented");
     }
     size_t size() const { return _phf.m; }
     size_t max_size() const { return _phf.m; }

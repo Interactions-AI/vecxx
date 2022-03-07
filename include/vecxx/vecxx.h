@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <functional>
 #include <exception>
+#include <chrono>
+
 #include "vecxx/utils.h"
 #include "vecxx/bpe.h"
 
@@ -346,8 +348,11 @@ public:
 	    special_tokens[token] = _offset;
 	    ++_offset;
 	}
-	   
+        auto _begin = std::chrono::high_resolution_clock::now();
 	vocab = read_vocab_file(vocab_file, _offset);
+        auto _end = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(_end - _begin);
+        std::cout << "vocab load time " << elapsed.count() << " microseconds" << std::endl;
 	read_codes_file(codes_file, _codes, _reversed_codes);
     }
     virtual ~BPEVocab() {
@@ -394,6 +399,16 @@ public:
 	}
 
 	return x;	
+    }
+
+    virtual std::string rlookup(const Index_T& idx) {
+        bool found;
+        std::string rv;
+        std::tie(found, rv) = vocab->rfind(idx);
+        if (!found) {
+            return "";
+        }
+        return rv;
     }
 
     // FIXME: pass return by ref

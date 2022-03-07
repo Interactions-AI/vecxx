@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <functional>
+#include <chrono>
 
 typedef uint32_t Index_T;
 
@@ -38,6 +39,7 @@ public:
     MapStrInt() {}
     virtual ~MapStrInt() {}
     virtual std::tuple<bool, Index_T> find(const std::string& key) const = 0;
+    virtual std::tuple<bool, std::string> rfind(const Index_T) = 0;
     virtual bool exists(const std::string& key) const = 0;
     virtual size_t size() const = 0;
     virtual size_t max_size() const = 0;
@@ -81,6 +83,7 @@ public:
 class UnorderedMapStrInt : public MapStrInt
 {
     std::unordered_map<std::string, Index_T> _m;
+    std::unordered_map<Index_T, std::string> _mr;
 public:
     typedef typename std::unordered_map<std::string, Index_T>::const_iterator const_iterator;
     UnorderedMapStrInt() {
@@ -101,6 +104,23 @@ public:
   	    return std::make_tuple(false, 0);
 	}
 	return std::make_tuple(true, it->second);
+    }
+    std::tuple<bool, std::string> rfind(const Index_T indx) {
+        auto begin = std::chrono::high_resolution_clock::now();
+        if (_mr.empty()) {
+            std::for_each(_m.begin(), _m.end(),
+                    [this] (const std::pair<std::string, Index_T>& p) {
+                        this->_mr[p.second] = p.first;
+                    });
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - begin);
+        std::cout << "convert time " << elapsed.count() << " microseconds" << std::endl;
+        auto it = _mr.find(indx);
+        if (it == _mr.end()) {
+            return std::make_tuple(false, "");
+        }
+        return std::make_tuple(true, it->second);
     }
     bool exists(const std::string& key) const {
 	auto it = _m.find(key);
