@@ -6,6 +6,7 @@
 #include <vector>
 #include <algorithm>
 #include <functional>
+#include <exception>
 #include "vecxx/utils.h"
 #include "vecxx/iox.h"
 #include "vecxx/phf.h"
@@ -213,9 +214,13 @@ void read_codes_file(const std::string& infile, Codes_T*& codes, RevCodes_T*& re
 	read_codes_mmap(infile, codes, rev_codes);
 	return;
     }
+
     auto c = new UnorderedMapStrInt();
     auto rc = new UnorderedMapStrStr();
     std::ifstream f(infile.c_str());
+    if (!f.is_open()) {
+        throw std::runtime_error(std::string("No file: ") + infile);
+    }
     std::string line;
     while (getline(f, line)) {
 	auto splits = split(line);
@@ -224,6 +229,7 @@ void read_codes_file(const std::string& infile, Codes_T*& codes, RevCodes_T*& re
 	(*c)[pair] = (uint32_t)c->size();
 	(*rc)[concat] = pair;
     }
+    f.close();
     codes = c;
     rev_codes = rc;
 }

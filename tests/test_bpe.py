@@ -13,6 +13,28 @@ TEST_N_IDS_GOLD = [
     [1, 8, 158, 63, 10940, 525, 18637, 7, 3685, 5, 2],
     [1, 18, 14242, 1685, 2997, 4719, 2]
 ]
+def test_no_vocab():
+    caught = False
+    try:
+        bpe = BPEVocab(
+            vocab_file="i dont exist",
+            codes_file=os.path.join(TEST_DATA, "codes.30k")
+        )
+    except Exception as e:
+        caught = True
+    assert caught == True
+
+def test_no_codes():
+    caught = False
+    try:
+        bpe = BPEVocab(
+            vocab_file=os.path.join(TEST_DATA, "vocab.30k"),
+            codes_file="i dont exist"
+        )
+    except Exception as e:
+        caught = True
+    assert caught == True 
+
 def test_pieces():
     bpe = BPEVocab(
         vocab_file=os.path.join(TEST_DATA, "vocab.30k"),

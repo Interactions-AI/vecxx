@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <functional>
-
+#include <exception>
 #include "vecxx/utils.h"
 #include "vecxx/bpe.h"
 
@@ -29,6 +29,9 @@ MapStrInt* read_vocab_file(const std::string& infile, int offset=4)
 	return read_vocab_mmap(infile);
     }
     std::ifstream f(infile.c_str());
+    if (!f.is_open()) {
+        throw std::runtime_error(std::string("No file: ") + infile);
+    }
     std::string line;
     int i = 0;
     UnorderedMapStrInt* vocab = new UnorderedMapStrInt();
@@ -40,6 +43,7 @@ MapStrInt* read_vocab_file(const std::string& infile, int offset=4)
 
 	
     }
+    f.close();
     return vocab;
 }
 
