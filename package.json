@@ -1,6 +1,6 @@
 {
   "name": "vecxx",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "description": "C++ implementations of vectorizers",
   "main": "dist/index.js",
   "types": "dist/types/index.d.ts",
