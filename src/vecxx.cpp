@@ -2,13 +2,13 @@
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
 #include "vecxx/vecxx.h"
-
+#define STRINGIFY(x) #x
 namespace py = pybind11;
 
 PYBIND11_MODULE(vecxx, m) {
 
     #ifdef VERSION_INFO
-        m.attr("__version__") = VERSION_INFO;
+        m.attr("__version__") = STRINGIFY(VERSION_INFO);
     #else
         m.attr("__version__") = "dev";
     #endif
