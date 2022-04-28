@@ -85,7 +85,7 @@ class BuildExt(build_ext):
                 opts.append('-fvisibility=hidden')
         elif ct == 'msvc':
             opts.append('/D_CRT_RAND_S')
-            opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
+            opts.append('/DVERSION_INFO="%s"' % self.distribution.get_version())
         for ext in self.extensions:
             ext.extra_compile_args = opts
             ext.extra_link_args = link_opts
@@ -101,7 +101,7 @@ setup(
     author=About.AUTHOR,
     python_requires='>=3.6',
     ext_modules=ext_modules,
-    install_requires=["pybind11>=2.8.0"],
+    install_requires=["pybind11>=2.5.0"],
     extras_require={
         'test': ['pytest', 'pytest-forked'],
     },

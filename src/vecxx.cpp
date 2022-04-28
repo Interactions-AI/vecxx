@@ -9,6 +9,8 @@ PYBIND11_MODULE(vecxx, m) {
 
     #ifdef VERSION_INFO
         m.attr("__version__") = VERSION_INFO;
+    #else
+        m.attr("__version__") = "dev";
     #endif
     m.doc() = "pybind11 vecxx plugin";
     py::class_<Vocab>(m, "Vocab")
