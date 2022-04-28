@@ -19,7 +19,8 @@ ext_modules = [
     Pybind11Extension("vecxx",
         ["src/vecxx.cpp"],
         include_dirs=["include"],
-        define_macros = [('VERSION_INFO', __version__)],
+        define_macros = [('VERSION_INFO', __version__),
+            ('_CRT_RAND_S', 1),],
         ),
 ]
 
