@@ -559,7 +559,7 @@ public:
 	return std::make_tuple(false, (Index_T)0);
     }
 
-    std::tuple<bool, std::string> rfind(const Index_T idx) {
+    std::tuple<bool, std::string> rfind(const Index_T idx) const {
         if (idx >= this->size()) {
             throw std::runtime_error("PerfectHashMapStrInt::rfind index " + std::to_string(idx) + " out of range");
         }

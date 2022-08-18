@@ -22,6 +22,7 @@ typedef std::unordered_map<std::string, uint32_t> SpecialVocab_T;
 typedef std::vector<int> VecList_T;
 typedef std::function<std::string(std::string)> Transform_T;
 
+const std::string WHITESPACE = " \n\r\t\f\v";
 
 class MapStrStr
 {
@@ -39,7 +40,7 @@ public:
     MapStrInt() {}
     virtual ~MapStrInt() {}
     virtual std::tuple<bool, Index_T> find(const std::string& key) const = 0;
-    virtual std::tuple<bool, std::string> rfind(const Index_T) = 0;
+    virtual std::tuple<bool, std::string> rfind(const Index_T) const = 0;
     virtual bool exists(const std::string& key) const = 0;
     virtual size_t size() const = 0;
     virtual size_t max_size() const = 0;
@@ -83,7 +84,7 @@ public:
 class UnorderedMapStrInt : public MapStrInt
 {
     std::unordered_map<std::string, Index_T> _m;
-    std::unordered_map<Index_T, std::string> _mr;
+    mutable std::unordered_map<Index_T, std::string> _mr;
 public:
     typedef typename std::unordered_map<std::string, Index_T>::const_iterator const_iterator;
     UnorderedMapStrInt() {
@@ -105,7 +106,7 @@ public:
 	}
 	return std::make_tuple(true, it->second);
     }
-    std::tuple<bool, std::string> rfind(const Index_T indx) {
+    std::tuple<bool, std::string> rfind(const Index_T indx) const {
         if (_mr.empty()) {
             std::for_each(_m.begin(), _m.end(),
                     [this] (const std::pair<std::string, Index_T>& p) {
@@ -187,6 +188,22 @@ void upper(std::string& data)
 {
     std::transform(data.begin(), data.end(), data.begin(),
 		   [](unsigned char c){ return std::toupper(c); });
+}
+
+std::string ltrim(const std::string &s)
+{
+    size_t start = s.find_first_not_of(WHITESPACE);
+    return (start == std::string::npos) ? "" : s.substr(start);
+}
+
+std::string rtrim(const std::string &s)
+{
+    size_t end = s.find_last_not_of(WHITESPACE);
+    return (end == std::string::npos) ? "" : s.substr(0, end + 1);
+}
+
+std::string trim(const std::string &s) {
+    return rtrim(ltrim(s));
 }
 
 #endif
