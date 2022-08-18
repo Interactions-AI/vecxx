@@ -13,6 +13,7 @@ TEST_N_IDS_GOLD = [
     [1, 8, 158, 63, 10940, 525, 18637, 7, 3685, 5, 2],
     [1, 18, 14242, 1685, 2997, 4719, 2]
 ]
+TEST_REVERSE_GOLD = ['', 'my', 'name', 'is', 'dan', '.', 'i', 'am', 'from', 'ann', 'ar@@', 'bor', ',', 'michigan', ',', 'in', 'wash@@', 'ten@@', 'aw', 'county', '']
 def test_no_vocab():
     caught = False
     try:
@@ -83,6 +84,21 @@ def test_ids():
     v, l = vec.convert_to_ids(TEST_SENTENCE.split(), 5)
     assert v == TEST_IDS_GOLD[:5]
     assert l == 5
+
+def test_ids_reverse():
+    bpe = BPEVocab(
+        vocab_file=os.path.join(TEST_DATA, "vocab.30k"),
+        codes_file=os.path.join(TEST_DATA, "codes.30k")
+    )
+    vec = VocabVectorizer(bpe, transform=str.lower, emit_begin_tok=["<GO>"], emit_end_tok=["<EOS>"])
+    v, l = vec.convert_to_ids(TEST_SENTENCE.split())
+    assert v == TEST_IDS_GOLD
+    assert l == len(TEST_IDS_GOLD)
+    tok = []
+    for i in v:
+        tok.append(bpe.rlookup(i))
+    assert tok == TEST_REVERSE_GOLD
+
 
 def test_ids_stack():
     bpe = BPEVocab(
