@@ -65,7 +65,22 @@ def test_bpe_lookup():
     ids = [bpe.lookup(s, str.lower) for s in toks]
     assert ids == TEST_IDS_GOLD
 
-    
+def test_compile():
+    bpe = BPEVocab(
+        vocab_file=os.path.join(TEST_DATA, "vocab.30k"),
+        codes_file=os.path.join(TEST_DATA, "codes.30k")
+    )
+    compiled_path = os.path.join(TEST_DATA, "vocab.30k.ph")
+    bpe.compile_vocab(compiled_path)
+    bpe = BPEVocab(
+        vocab_file=compiled_path,
+        codes_file=compiled_path
+    )
+    vec = VocabVectorizer(bpe, transform=str.lower, emit_begin_tok=["<GO>"], emit_end_tok=["<EOS>"])
+    v, l = vec.convert_to_ids(TEST_SENTENCE.split())
+    assert v == TEST_IDS_GOLD
+    assert l == len(TEST_IDS_GOLD)
+
 def test_ids():
     bpe = BPEVocab(
         vocab_file=os.path.join(TEST_DATA, "vocab.30k"),
@@ -99,6 +114,23 @@ def test_ids_reverse():
         tok.append(bpe.rlookup(i))
     assert tok == TEST_REVERSE_GOLD
 
+def test_ids_reverse_ph():
+    bpe = BPEVocab(
+        vocab_file=os.path.join(TEST_DATA, "vocab.30k"),
+        codes_file=os.path.join(TEST_DATA, "codes.30k")
+    )
+    compiled_path = os.path.join(TEST_DATA, "vocab.30k.ph")
+    bpe.compile_vocab(compiled_path)
+    bpe = BPEVocab(
+        vocab_file=compiled_path,
+        codes_file=compiled_path
+    )
+    vec = VocabVectorizer(bpe, transform=str.lower, emit_begin_tok=["<GO>"], emit_end_tok=["<EOS>"])
+    v, l = vec.convert_to_ids(TEST_SENTENCE.split())
+    decoded = vec.decode(v)
+    assert decoded == TEST_SENTENCE.lower()
+    assert v == TEST_IDS_GOLD
+    assert l == len(TEST_IDS_GOLD)
 
 def test_ids_stack():
     bpe = BPEVocab(
