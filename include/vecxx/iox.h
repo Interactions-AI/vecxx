@@ -20,7 +20,7 @@
 #include <string>
 #include <tuple>
 #include "vecxx/phf.h"
-#include "utils.h"
+#include "vecxx/utils.h"
 
 #if defined(WIN32) || defined(_WIN32)
 #  include <windows.h>

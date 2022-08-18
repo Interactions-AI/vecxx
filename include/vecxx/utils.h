@@ -106,16 +106,12 @@ public:
 	return std::make_tuple(true, it->second);
     }
     std::tuple<bool, std::string> rfind(const Index_T indx) {
-        auto begin = std::chrono::high_resolution_clock::now();
         if (_mr.empty()) {
             std::for_each(_m.begin(), _m.end(),
                     [this] (const std::pair<std::string, Index_T>& p) {
                         this->_mr[p.second] = p.first;
                     });
         }
-        auto end = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - begin);
-        std::cout << "convert time " << elapsed.count() << " microseconds" << std::endl;
         auto it = _mr.find(indx);
         if (it == _mr.end()) {
             return std::make_tuple(false, "");

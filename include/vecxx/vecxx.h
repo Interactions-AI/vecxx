@@ -349,11 +349,7 @@ public:
 	    special_tokens[token] = _offset;
 	    ++_offset;
 	}
-        auto _begin = std::chrono::high_resolution_clock::now();
 	vocab = read_vocab_file(vocab_file, _offset);
-        auto _end = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(_end - _begin);
-        std::cout << "vocab load time " << elapsed.count() << " microseconds" << std::endl;
 	read_codes_file(codes_file, _codes, _reversed_codes);
     }
     virtual ~BPEVocab() {
