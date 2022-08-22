@@ -34,6 +34,7 @@ PYBIND11_MODULE(vecxx, m) {
 	   
 	   )
       .def("lookup", &BPEVocab::lookup)
+      .def("rlookup", &BPEVocab::rlookup)
       .def("compile_vocab", &BPEVocab::compile_vocab)
       .def_property_readonly("pad_id", &BPEVocab::pad_id)
       .def_property_readonly("start_id", &BPEVocab::start_id)
@@ -119,6 +120,7 @@ PYBIND11_MODULE(vecxx, m) {
 	   py::arg("emit_begin_tok")=TokenList_T(),
 	   py::arg("emit_end_tok")=TokenList_T()
 	   )
+      .def("decode", &VocabVectorizer::decode)
       .def("piece_to_id", &VocabVectorizer::piece_to_id)
       .def("convert_to_pieces", &VocabVectorizer::convert_to_pieces,
 	   py::arg("tokens")

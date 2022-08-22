@@ -13,9 +13,14 @@
  *
  * For this library, we are targeting C++11 or later.
  */ 
+#include <cassert>
+#include <cstdint>
 #include <inttypes.h> /* PRIu32 PRIx32 */
 #include <stdint.h>   /* UINT32_MAX uint32_t uint64_t */
+#include <string>
+#include <tuple>
 #include "vecxx/phf.h"
+#include "vecxx/utils.h"
 
 #if defined(WIN32) || defined(_WIN32)
 #  include <windows.h>
@@ -308,32 +313,51 @@ void compile_str_int(const UnorderedMapStrInt& c, std::string dir,size_t alpha=8
     auto m = phf.m;
     save_phf(phf, dir);
 
+    std::vector<char> flat;
     uint32_t* h = new uint32_t[m];
     memset(h, 0, m*4);
     uint32_t* v = new uint32_t[m];
     memset(v, 0, m*4);
+    uint32_t* offsets = new uint32_t[m*2];
+    memset(offsets, 0, m*4*2);
 
+    uint32_t prev_offset = -1;
     for (auto p = c.begin(); p != c.end(); ++p) {
 	phf_hash_t idx = PHF::hash(&phf, p->first);
 	h[idx] = _hash_key(p->first);
 	v[idx] = (uint32_t)p->second;
-	
+        assert((uint32_t)p->second < m*2);
+        auto offset_start = (uint32_t)p->second * 2;
+        offsets[offset_start] = (uint32_t)flat.size();
+        for (const char& ch : p->first) {
+            flat.push_back(ch);
+        }
+        offsets[offset_start + 1] = (uint32_t)flat.size();
     }
     std::ofstream bin(file_in_dir(dir, "v.dat"),
 		      std::ios::out | std::ios::binary);
     bin.write((const char*)v, m*4);
     bin.close();
 
+    std::ofstream obin(file_in_dir(dir, "offsets.dat"),
+		       std::ios::out | std::ios::binary);
+    obin.write((const char*)offsets, m*4*2);
+    obin.close();
+
     std::ofstream hbin(file_in_dir(dir, "hkey.dat"),
 		       std::ios::out | std::ios::binary);
     hbin.write((const char*)h, m*4);
     hbin.close();
 
+    std::ofstream cbin(file_in_dir(dir, "flat.dat"),
+		       std::ios::out | std::ios::binary);
+    cbin.write((const char*)&flat[0], flat.size());
+    cbin.close();
+
     PHF::destroy(&phf);
     delete [] k;
     delete [] h;
     delete [] v;
-
 }
 
 void compile_str_str(const UnorderedMapStrStr& c, std::string dir, size_t alpha=80, size_t lambda=4) {
@@ -490,6 +514,11 @@ class PerfectHashMapStrInt : public MapStrInt
     uint32_t* _v;
     Handle_T _k_fd;
     Handle_T _v_fd;
+    uint32_t* _offsets;
+    Handle_T _offsets_fd;
+    uint32_t _data_len;
+    Handle_T _data_fd;
+    char* _data;
     uint32_t _hash_key(const std::string& k) const {
 	return phf_round32(k, 1337);
     }
@@ -498,13 +527,14 @@ public:
 	load_phf(_phf, dir);
 	std::tie(_k, _k_fd) = _read_uint32s(file_in_dir(dir, "hkey.dat"), _phf.m);
 	std::tie(_v, _v_fd) = _read_uint32s(file_in_dir(dir, "v.dat"), _phf.m);
-	
+	std::tie(_offsets, _offsets_fd) = _read_uint32s(file_in_dir(dir, "offsets.dat"), _phf.m*2);
+	std::tie(_data, _data_len, _data_fd) = _read_chars(file_in_dir(dir, "flat.dat"));
     }
     ~PerfectHashMapStrInt() {
 	if (_k != NULL) {
 	    munmap(_k, _phf.m*4);
 	    close_file(_k_fd);
-	}	
+	}
 	if (_v != NULL) {
 	    munmap(_v, _phf.m*4);
 	    close_file(_v_fd);
@@ -521,13 +551,28 @@ public:
 	phf_hash_t idx = PHF::hash(&_phf, key);
         const uint32_t p = _v[idx];
 	if (_k[idx] == _hash_key(key)) {
+            auto offset_idx = p * 2;
+            auto offset_start = _offsets[offset_idx];
+            auto offset_end = _offsets[offset_idx + 1];
 	    return std::make_tuple(true, (Index_T)p);
 	}
 	return std::make_tuple(false, (Index_T)0);
     }
+
+    std::tuple<bool, std::string> rfind(const Index_T idx) const {
+        if (idx >= this->size()) {
+            throw std::runtime_error("PerfectHashMapStrInt::rfind index " + std::to_string(idx) + " out of range");
+        }
+        uint32_t offset_idx = (uint32_t)idx * 2;
+        auto offset_start = _offsets[offset_idx];
+        auto offset_end = _offsets[offset_idx + 1];
+        if (offset_end > _data_len) {
+            return std::make_tuple(false, "");
+        }
+        return std::make_tuple(true, std::string(&_data[offset_start], &_data[offset_end]));
+    }
     size_t size() const { return _phf.m; }
     size_t max_size() const { return _phf.m; }
-    
 };
 
 

@@ -2,7 +2,9 @@
 #define __VECXX_H__
 
 #include <fstream>
+#include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <cassert>
@@ -10,6 +12,7 @@
 #include <algorithm>
 #include <functional>
 #include <exception>
+
 #include "vecxx/utils.h"
 #include "vecxx/bpe.h"
 
@@ -124,6 +127,7 @@ public:
     virtual std::string end_str() const = 0;
     virtual std::string unk_str() const = 0;
     virtual void compile_vocab(const std::string& target_dir) const = 0;
+    virtual std::string rlookup(const Index_T&) const = 0;
 
 };
 class WordVocab : public Vocab
@@ -298,6 +302,10 @@ public:
 	return output;
     }
 
+    virtual std::string rlookup(const Index_T& id) const {
+        throw std::logic_error("WordVocab::rlookup not implemented");
+    }
+
     
 };
 
@@ -346,7 +354,6 @@ public:
 	    special_tokens[token] = _offset;
 	    ++_offset;
 	}
-	   
 	vocab = read_vocab_file(vocab_file, _offset);
 	read_codes_file(codes_file, _codes, _reversed_codes);
     }
@@ -394,6 +401,16 @@ public:
 	}
 
 	return x;	
+    }
+
+    virtual std::string rlookup(const Index_T& idx) const {
+        bool found;
+        std::string rv;
+        std::tie(found, rv) = vocab->rfind(idx);
+        if (!found) {
+            return "";
+        }
+        return rv;
     }
 
     // FIXME: pass return by ref
@@ -472,6 +489,26 @@ public:
 	    }
 	}
 	return std::make_tuple(ids, lengths);
+    }
+
+    std::string decode(const VecList_T& ids) const {
+        // reverse look up each ids
+        std::vector<std::string> tokens;
+        for (const auto & id : ids) {
+            tokens.push_back(this->_vocab->rlookup(id));
+        }
+        std::string rv;
+        std::string separator = "@@";
+        for (auto & s : tokens) {
+            auto found_pos = s.find(separator);
+            if (found_pos != std::string::npos) {
+                s.replace(found_pos, 2, "");
+                rv = rv + s;
+                continue;
+            }
+            rv += s + " ";
+        }
+        return ltrim(rtrim(rv));
     }
 };
 
