@@ -107,7 +107,7 @@ void* mmap_read_win32(void *addr, size_t len, HANDLE h, Offset_T off=0)
     const DWORD dwFileOffsetHigh = (sizeof(Offset_T) <= sizeof(DWORD)) ?
                     (DWORD)0 : (DWORD)((off >> 32) & 0xFFFFFFFFL);
     const DWORD protect = PAGE_READONLY;
-    const DWORD desiredAccess = PAGE_READONLY;
+    const DWORD desiredAccess = FILE_MAP_READ;
     const Offset_T maxSize = off + (Offset_T)len;
     const DWORD dwMaxSizeLow = (sizeof(Offset_T) <= sizeof(DWORD)) ?
                     (DWORD)maxSize : (DWORD)(maxSize & 0xFFFFFFFFL);
