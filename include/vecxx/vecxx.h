@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <functional>
 #include <exception>
-#include <chrono>
 
 #include "vecxx/utils.h"
 #include "vecxx/bpe.h"
